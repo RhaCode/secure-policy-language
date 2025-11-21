@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Django secrets and environment
+.env
+.env.*
+*.env
+
+# Virtual environments
+env/
+venv/
+ENV/
+.venv/
+
+*.log
+logs/
+
+documents/
+
+notes.txt
+save.txt
