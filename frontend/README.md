@@ -44,23 +44,23 @@ secure-policy-language/
 │   │
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── CodeEditor.jsx    # Monaco editor component
-│   │   │   ├── CompilerOutput.jsx # Display compilation results
-│   │   │   ├── ErrorDisplay.jsx   # Show errors with line numbers
-│   │   │   ├── RiskReport.jsx     # LLM security analysis display
-│   │   │   └── Navbar.jsx
+│   │   │   ├── CodeEditor.tsx    # Monaco editor component
+│   │   │   ├── CompilerOutput.tsx # Display compilation results
+│   │   │   ├── ErrorDisplay.tsx   # Show errors with line numbers
+│   │   │   ├── RiskReport.tsx     # LLM security analysis display
+│   │   │   └── Navbar.tsx
 │   │   │
 │   │   ├── services/
-│   │   │   └── api.js            # API calls to backend
+│   │   │   └── api.ts            # API calls to backend
 │   │   │
 │   │   ├── styles/
 │   │   │   └── main.css
 │   │   │
-│   │   ├── App.jsx               # Main React component
-│   │   └── main.jsx              # React entry point
+│   │   ├── App.tsx               # Main React component
+│   │   └── main.tsx              # React entry point
 │   │
-│   ├── package.json
-│   ├── vite.config.js
+│   ├── package.ton
+│   ├── vite.config.ts
 │   └── .env                      # Frontend environment variables
 │
 ├── docs/
