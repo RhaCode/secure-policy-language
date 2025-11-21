@@ -1,1 +1,168 @@
 @import "tailwindcss";
+
+@layer base {
+  :root {
+    /* ---- Base ---- */
+    --background: #F3F4F6;
+    --foreground: #111827;
+    --card: #ceb7b7;
+    --card-foreground: #111827;
+    --popover: #FFFFFF;
+    --popover-foreground: #1F2937;
+
+    /* ---- Primary Palette (Blue) ---- */
+    --primary: #2563EB; /* deep but vivid blue */
+    --primary-foreground: #FFFFFF;
+
+    /* ---- Secondary Palette (Slate) ---- */
+    --secondary: #E5E7EB;
+    --secondary-foreground: #374151;
+
+    /* ---- Muted / Subtle areas ---- */
+    --muted: #F3F4F6;
+    --muted-foreground: #6B7280;
+
+    /* ---- Accent (Soft Indigo) ---- */
+    --accent: #E0E7FF;
+    --accent-foreground: #3730A3;
+
+    /* ---- Destructive (Error) ---- */
+    --destructive: #DC2626;
+    --destructive-foreground: #FFFFFF;
+
+    /* ---- Border & Shadow ---- */
+    --border: #D1D5DB;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+
+    /* ---- Input & Focus ---- */
+    --input: #FFFFFF;
+    --ring: #3B82F6;
+
+    /* ---- Radii ---- */
+    --radius: 0.5rem;
+
+    /* ---- Status Colors ---- */
+    --success: #059669;
+    --success-foreground: #FFFFFF;
+    --success-muted: #D1FAE5;
+
+    --warning: #D97706;
+    --warning-foreground: #FFFFFF;
+    --warning-muted: #FEF3C7;
+
+    --info: #2563EB;
+    --info-foreground: #FFFFFF;
+    --info-muted: #DBEAFE;
+
+    --purple: #7C3AED;
+    --purple-foreground: #FFFFFF;
+    --purple-muted: #E9D5FF;
+
+    /* ---- Glow & Effects ---- */
+    --glow-primary: rgba(37, 99, 235, 0.4);
+    --glow-secondary: rgba(124, 58, 237, 0.3);
+
+    /* ---- Scrollbars ---- */
+    --scrollbar-track: #F3F4F6;
+    --scrollbar-thumb: #9CA3AF;
+    --scrollbar-thumb-hover: #6B7280;
+  }
+
+  .dark {
+    /* ---- Base ---- */
+    --background: #1C1C1E;
+    --foreground: #F9FAFB;
+
+    --card: #242426;
+    --card-foreground: #F3F4F6;
+    --popover: #2E2F31;
+    --popover-foreground: #F9FAFB;
+
+    /* ---- Primary Palette ---- */
+    --primary: #60A5FA; /* lighter blue for contrast */
+    --primary-foreground: #0F172A;
+
+    /* ---- Secondary Palette ---- */
+    --secondary: #3F3F46;
+    --secondary-foreground: #E5E7EB;
+
+    /* ---- Muted ---- */
+    --muted: #2D2E30;
+    --muted-foreground: #A1A1AA;
+
+    /* ---- Accent ---- */
+    --accent: #312E81;
+    --accent-foreground: #C7D2FE;
+
+    /* ---- Destructive ---- */
+    --destructive: #F87171;
+    --destructive-foreground: #1C1917;
+
+    /* ---- Border & Shadow ---- */
+    --border: #3F3F46;
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+
+    /* ---- Input & Focus ---- */
+    --input: #3F3F46;
+    --ring: #93C5FD;
+
+    /* ---- Status Colors ---- */
+    --success: #10B981;
+    --success-foreground: #0F172A;
+    --success-muted: #064E3B;
+
+    --warning: #FBBF24;
+    --warning-foreground: #0F172A;
+    --warning-muted: #78350F;
+
+    --info: #3B82F6;
+    --info-foreground: #0F172A;
+    --info-muted: #1E3A8A;
+
+    --purple: #8B5CF6;
+    --purple-foreground: #0F172A;
+    --purple-muted: #4C1D95;
+
+    /* ---- Scrollbars ---- */
+    --scrollbar-track: #1E1E1E;
+    --scrollbar-thumb: #52525B;
+    --scrollbar-thumb-hover: #71717A;
+  }
+
+
+  * {
+    border-color: var(--border);
+  }
+
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+
+  /* Scrollbar styling for WebKit */
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+    border-radius: 6px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 6px;
+    border: 2px solid var(--scrollbar-track);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+
+  /* Scrollbar styling for Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+}

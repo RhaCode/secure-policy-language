@@ -130,6 +130,7 @@ def compile_spl():
                 "error": "Missing 'code' field in request body"
             }), 400
         
+        print("Data received for compilation:", data)
         source_code = data['code']
         should_analyze = data.get('analyze', False)
         generate_code = data.get('generate_code', False)

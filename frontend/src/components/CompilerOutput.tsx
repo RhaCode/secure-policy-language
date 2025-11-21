@@ -110,7 +110,7 @@ const CompilerOutput: React.FC<CompilerOutputProps> = ({
           icon={<Code2 size={16} className="text-blue-600" />}
         />
         {expandedSections.has('tokenization') && (
-          <div className="p-4 bg-gray-50">
+          <div className="p-4">
             <div className="flex justify-between items-center mb-3">
               <span className="text-sm text-gray-600">
                 {stages.tokenization.token_count} tokens generated

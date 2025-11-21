@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Play, Shield, Download } from 'lucide-react';
-import Navbar from './components/Navbar';
+import { Play, Shield, Download, Code2 } from 'lucide-react';
 import CodeEditor from './components/CodeEditor';
 import CompilerOutput from './components/CompilerOutput';
 import RiskReport from './components/RiskReport';
@@ -137,93 +136,126 @@ function App() {
   }, [compilationResult]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
-      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left Column - Code Editor */}
-          <div className="space-y-6">
-            {/* Editor Header */}
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-gray-900">SPL Editor</h2>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleCompile}
-                  disabled={isCompiling}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <Play size={18} />
-                  {isCompiling ? 'Compiling...' : 'Compile'}
-                </button>
-                
-                <button
-                  onClick={handleSecurityAnalysis}
-                  disabled={isAnalyzingSecurity}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <Shield size={18} />
-                  {isAnalyzingSecurity ? 'Analyzing...' : 'Security Scan'}
-                </button>
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Navbar with Actions */}
+      <header className="border-b border-slate-700 bg-card sticky top-0 z-50">
+        <div className="max-w-full px-2 sm:px-4 lg:px-4 py-2">
+          <div className="flex items-center justify-between">
+            {/* Left - Branding */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-linear-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                <Code2 size={24} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-white">SPL Compiler</h1>
+                <p className="text-xs text-slate-400">Security Policy Language</p>
               </div>
             </div>
 
-            {/* Code Editor */}
-            <CodeEditor
-              code={code}
-              onCodeChange={setCode}
-              errors={errors}
-            />
+            {/* Center - File Info */}
+            <div className="hidden md:flex items-center gap-6 text-sm text-slate-400">
+              <div>Lines: <span className="text-white font-semibold">{code.split('\n').length}</span></div>
+              <div>Characters: <span className="text-white font-semibold">{code.length}</span></div>
+              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+              <span>Ready</span>
+            </div>
 
-            {/* Quick Actions */}
-            <div className="flex gap-2">
+            {/* Right - Action Buttons */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleCompile}
+                disabled={isCompiling}
+                className="flex items-center gap-2 px-4 py-2.5 bg-linear-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 group text-sm"
+              >
+                <Play size={16} className="group-hover:translate-x-0.5 transition-transform" />
+                {isCompiling ? 'Compiling...' : 'Compile'}
+              </button>
+
+              <button
+                onClick={handleSecurityAnalysis}
+                disabled={isAnalyzingSecurity}
+                className="flex items-center gap-2 px-4 py-2.5 bg-linear-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 group text-sm"
+              >
+                <Shield size={16} className="group-hover:translate-x-0.5 transition-transform" />
+                {isAnalyzingSecurity ? 'Scanning...' : 'Scan'}
+              </button>
+
               {compilationResult?.stages.code_generation && (
                 <button
                   onClick={handleDownload}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-all duration-200 group text-sm"
                 >
-                  <Download size={18} />
-                  Download Policy
+                  <Download size={16} className="group-hover:translate-y-0.5 transition-transform" />
+                  Export
                 </button>
               )}
             </div>
           </div>
+        </div>
+      </header>
 
-          {/* Right Column - Results */}
-          <div className="space-y-6">
-            <div className="flex border-b">
-              <button
-                onClick={() => setActiveTab('compilation')}
-                className={`flex-1 py-3 px-4 text-center font-medium ${
-                  activeTab === 'compilation'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Compilation Results
-              </button>
-              <button
-                onClick={() => setActiveTab('security')}
-                className={`flex-1 py-3 px-4 text-center font-medium ${
-                  activeTab === 'security'
-                    ? 'border-b-2 border-green-600 text-green-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Security Analysis
-              </button>
+      {/* Main Content */}
+      <main className="flex-1 overflow-hidden">
+        <div className="max-w-full h-full px-2 sm:px-2 lg:px-2 py-2">
+          <div className="flex flex-col gap-2 h-full">
+            {/* Top Panel - Code Editor (60%) */}
+            <div className="h-3/5 flex flex-col min-w-0 max-h-[calc(100vh-300px)]">
+              <div className="flex-1 overflow-hidden shadow-2xl border border-slate-700 flex flex-col">
+                {/* Code Editor Component */}
+                <div className="flex-1 overflow-hidden">
+                  <CodeEditor
+                    code={code}
+                    onCodeChange={setCode}
+                    errors={errors}
+                  />
+                </div>
+              </div>
             </div>
 
-            {activeTab === 'compilation' ? (
-              <CompilerOutput
-                compilationResult={compilationResult}
-                isLoading={isCompiling}
-              />
-            ) : (
-              <RiskReport
-                securityAnalysis={securityAnalysis}
-              />
-            )}
+            {/* Bottom Panel - Results (40%) */}
+            <div className="h-2/5 flex flex-col min-w-0">
+              <div className="flex-1 overflow-hidden shadow-2xl border border-slate-700 flex flex-col">
+                {/* Tabs */}
+                <div className="bg-linear-to-r from-slate-700 to-slate-800 border-b border-slate-700 flex shrink-0">
+                  <button
+                    onClick={() => setActiveTab('compilation')}
+                    className={`flex-1 px-4 py-2 text-sm font-semibold transition-all ${
+                      activeTab === 'compilation'
+                        ? 'text-cyan-400 border-b-2 border-cyan-400 bg-slate-700/50'
+                        : 'text-slate-400 hover:text-slate-300'
+                    }`}
+                  >
+                    Compilation
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('security')}
+                    className={`flex-1 px-6 py-4 text-sm font-semibold transition-all ${
+                      activeTab === 'security'
+                        ? 'text-green-400 border-b-2 border-green-400 bg-slate-700/50'
+                        : 'text-slate-400 hover:text-slate-300'
+                    }`}
+                  >
+                    Security
+                  </button>
+                </div>
+
+                {/* Results Content */}
+                <div className="flex-1 overflow-y-auto">
+                  {activeTab === 'compilation' ? (
+                    <CompilerOutput
+                      compilationResult={compilationResult}
+                      isLoading={isCompiling}
+                      className="h-full"
+                    />
+                  ) : (
+                    <RiskReport
+                      securityAnalysis={securityAnalysis}
+                      className="h-full"
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </main>
