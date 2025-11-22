@@ -1,3 +1,4 @@
+// frontend/src/types.ts
 // API Response Types
 export interface Token {
   type: string;
@@ -35,15 +36,30 @@ export interface CompilationStatistics {
   security_risks?: number;
 }
 
-export interface CompilationStage {
+export interface ParsingError {
+  line: number;
+  message: string;
+  type: string;
+}
+
+export interface TokenizationStage {
   success: boolean;
-  token_count?: number;
-  tokens?: Token[];
+  token_count: number;
+  tokens: Token[];
+}
+
+export interface ParsingStage {
+  success: boolean;
   ast?: string;
-  errors?: CompilationError[];
-  warnings?: CompilationWarning[];
-  conflicts?: PolicyConflict[];
-  statistics?: CompilationStatistics;
+  errors: ParsingError[];
+}
+
+export interface SemanticAnalysisStage {
+  success: boolean;
+  errors: CompilationError[];
+  warnings: CompilationWarning[];
+  conflicts: PolicyConflict[];
+  statistics: CompilationStatistics;
 }
 
 export interface CodeGenerationStage {
@@ -55,14 +71,14 @@ export interface CodeGenerationStage {
 
 export interface CompilationResponse {
   success: boolean;
+  stage?: string;
+  error?: string;
   stages: {
-    tokenization: CompilationStage;
-    parsing: CompilationStage;
-    semantic_analysis?: CompilationStage;
+    tokenization: TokenizationStage;
+    parsing: ParsingStage;
+    semantic_analysis?: SemanticAnalysisStage;
     code_generation?: CodeGenerationStage;
   };
-  error?: string;
-  stage?: string;
 }
 
 export interface SemanticAnalysisResponse {

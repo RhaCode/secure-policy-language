@@ -127,6 +127,7 @@ def compile_spl():
         
         if not data or 'code' not in data:
             return jsonify({
+                "success": False,
                 "error": "Missing 'code' field in request body"
             }), 400
         
@@ -153,15 +154,60 @@ def compile_spl():
         parser.build()
         ast = parser.parse(source_code)
         
+        # Even if parsing fails, return the errors to frontend
         if ast is None:
+            # Convert parser errors to frontend format
+            frontend_errors = []
+            for error_msg in parser.errors:
+                # Parse error message to extract line number and message
+                # Format: "Syntax error at line X: Unexpected token 'Y' (type: Z)"
+                if "line" in error_msg:
+                    try:
+                        # Extract line number
+                        line_part = error_msg.split("line")[1].split(":")[0].strip()
+                        line_number = int(line_part)
+                        
+                        # Extract message
+                        message = error_msg.split(": ", 1)[1] if ": " in error_msg else error_msg
+                        
+                        frontend_errors.append({
+                            "line": line_number,
+                            "message": message,
+                            "type": "ERROR"
+                        })
+                    except (IndexError, ValueError):
+                        # Fallback if parsing fails
+                        frontend_errors.append({
+                            "line": 1,
+                            "message": error_msg,
+                            "type": "ERROR"
+                        })
+                else:
+                    frontend_errors.append({
+                        "line": 1,
+                        "message": error_msg,
+                        "type": "ERROR"
+                    })
+            
             return jsonify({
                 "success": False,
                 "stage": "parsing",
-                "errors": parser.errors,
-                "tokens": token_list
-            }), 400
+                "errors": frontend_errors,
+                "tokens": token_list,
+                "stages": {
+                    "tokenization": {
+                        "success": True,
+                        "token_count": len(token_list),
+                        "tokens": token_list
+                    },
+                    "parsing": {
+                        "success": False,
+                        "errors": parser.errors
+                    }
+                }
+            }), 200  # Return 200 with error details instead of 400
         
-        # Prepare response
+        # Prepare response for successful parsing
         response = {
             "success": True,
             "stages": {
@@ -310,3 +356,28 @@ def api_internal_error(error):
         "error": "Internal server error in API",
         "message": str(error)
     }), 500
+
+@api.route('/debug-tokens', methods=['POST'])
+def debug_tokens():
+    """Debug endpoint to see tokenization results"""
+    try:
+        data = request.get_json()
+        source_code = data['code']
+        
+        lexer.build()
+        tokens = lexer.tokenize(source_code)
+        
+        return jsonify({
+            "tokens": [
+                {
+                    "type": token[0],
+                    "value": str(token[1]),
+                    "line": token[2]
+                }
+                for token in tokens
+            ],
+            "total_tokens": len(tokens)
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

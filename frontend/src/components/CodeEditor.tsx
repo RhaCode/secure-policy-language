@@ -73,6 +73,14 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ code, onCodeChange, errors, cla
     return '';
   };
 
+  const getLineErrorType = (lineNumber: number): string => {
+    const lineErrors = errors.filter(error => error.line === lineNumber);
+    if (lineErrors.length > 0) {
+      return lineErrors.some(error => error.type === 'ERROR') ? 'ERROR' : 'WARNING';
+    }
+    return '';
+  };
+
   const lines = code.split('\n');
   const errorCount = errors.filter(e => e.type === 'ERROR').length;
   const warningCount = errors.filter(e => e.type === 'WARNING' || e.type === 'RISK').length;
@@ -112,17 +120,32 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ code, onCodeChange, errors, cla
           className={`overflow-y-auto ${isDark ? 'bg-[#1E1E1E] border-[#3F3F46]' : 'bg-[#F3F4F6] border-[#D1D5DB]'} border-r select-none shrink-0`}
           style={{ width: '60px' }}
         >
-          {lines.map((_, i) => (
-            <div
-              key={i}
-              className={`px-3 py-1 text-right text-sm ${isDark ? 'text-[#6B7280]' : 'text-[#9CA3AF]'} font-mono leading-6 ${
-                i + 1 === activeLineNumber ? isDark ? 'bg-[#312E81] text-[#C7D2FE] font-semibold' : 'bg-[#E0E7FF] text-[#3730A3] font-semibold' : ''
-              } ${getLineClass(i + 1)} ${getLineIndicator(i + 1)}`}
-              style={{ height: '24px' }}
-            >
-              {i + 1}
-            </div>
-          ))}
+          {lines.map((_, i) => {
+            const lineNumber = i + 1;
+            const errorType = getLineErrorType(lineNumber);
+            return (
+              <div
+                key={i}
+                className={`px-3 py-1 text-right text-sm font-mono leading-6 relative ${
+                  isDark ? 'text-[#6B7280]' : 'text-[#9CA3AF]'
+                } ${
+                  lineNumber === activeLineNumber 
+                    ? isDark ? 'bg-[#312E81] text-[#C7D2FE] font-semibold' : 'bg-[#E0E7FF] text-[#3730A3] font-semibold' 
+                    : ''
+                } ${getLineClass(lineNumber)} ${getLineIndicator(lineNumber)}`}
+                style={{ height: '24px' }}
+              >
+                {lineNumber}
+                {errorType && (
+                  <div className={`absolute left-1 top-1/2 transform -translate-y-1/2 w-2 h-2 rounded-full ${
+                    errorType === 'ERROR' 
+                      ? isDark ? 'bg-red-500' : 'bg-red-500'
+                      : isDark ? 'bg-yellow-500' : 'bg-yellow-500'
+                  }`} />
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* Code Input */}
@@ -147,7 +170,9 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ code, onCodeChange, errors, cla
             onSelect={handleCursorChange}
             onClick={handleCursorChange}
             onKeyUp={handleCursorChange}
-            className={`w-full h-full resize-none ${isDark ? 'bg-[#242426] text-[#F3F4F6]' : 'bg-white text-[#111827]'} relative z-10 font-mono text-sm leading-6 px-4 py-1 focus:outline-none overflow-auto`}
+            className={`w-full h-full resize-none ${
+              isDark ? 'bg-[#242426] text-[#F3F4F6]' : 'bg-white text-[#111827]'
+            } relative z-10 font-mono text-sm leading-6 px-4 py-1 focus:outline-none overflow-auto`}
             style={{ 
               tabSize: 2,
             }}
@@ -170,7 +195,9 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ code, onCodeChange, errors, cla
               } transition-colors`}
             >
               <div className="flex-1 text-sm">
-                <span className={`font-semibold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>Line {error.line}:</span>{' '}
+                <span className={`font-semibold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>
+                  {error.line ? `Line ${error.line}:` : 'Error:'}
+                </span>{' '}
                 <span className={isDark ? 'text-[#A1A1AA]' : 'text-[#6B7280]'}>{error.message}</span>
               </div>
             </div>

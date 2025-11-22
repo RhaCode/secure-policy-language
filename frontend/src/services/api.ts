@@ -1,7 +1,11 @@
+// frontend/src/services/api.ts
 import type { 
   CompilationResponse, 
   SemanticAnalysisResponse, 
-  SecurityAnalysisResponse 
+  SecurityAnalysisResponse,
+  TokenizeResponse,
+  ParseResponse,
+  ValidateResponse
 } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
@@ -17,7 +21,9 @@ class ApiService {
         ...options,
       });
 
-      if (!response.ok) {
+      // For compilation, we now accept 200 responses even with parsing errors
+      // The success status is determined by the response body, not HTTP status
+      if (!response.ok && !url.includes('/compile')) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -40,21 +46,28 @@ class ApiService {
     });
   }
 
-  async tokenizeSPL(code: string): Promise<{ tokens: any[]; token_count: number }> {
+  async debugTokens(code: string): Promise<{ tokens: any[]; total_tokens: number }> {
+    return this.fetchWithErrorHandling(`${API_BASE}/debug-tokens`, {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+  }
+
+  async tokenizeSPL(code: string): Promise<TokenizeResponse> {
     return this.fetchWithErrorHandling(`${API_BASE}/tokenize`, {
       method: 'POST',
       body: JSON.stringify({ code }),
     });
   }
 
-  async parseSPL(code: string): Promise<{ ast: string; errors: string[] }> {
+  async parseSPL(code: string): Promise<ParseResponse> {
     return this.fetchWithErrorHandling(`${API_BASE}/parse`, {
       method: 'POST',
       body: JSON.stringify({ code }),
     });
   }
 
-  async validateSPL(code: string): Promise<{ valid: boolean; errors: string[] }> {
+  async validateSPL(code: string): Promise<ValidateResponse> {
     return this.fetchWithErrorHandling(`${API_BASE}/validate`, {
       method: 'POST',
       body: JSON.stringify({ code }),
