@@ -1,6 +1,6 @@
 """
 backend/compiler/parser.py
-Secure Policy Language (SPL) Parser - FIXED VERSION
+Secure Policy Language (SPL) Parser - FIXED VERSION WITH VALUE LISTS
 Performs syntax analysis and builds Abstract Syntax Tree (AST)
 """
 
@@ -12,7 +12,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from compiler.lexer import SPLLexer
-from compiler.ast_nodes import *  # Import from ast_nodes instead of defining here
+from compiler.ast_nodes import *
 
 
 class SPLParser:
@@ -76,11 +76,25 @@ class SPLParser:
             p[0] = {}
     
     def p_property(self, p):
-        '''property : IDENTIFIER COLON value
-                   | CAN COLON value'''
+        '''property : IDENTIFIER COLON value_or_list
+                   | CAN COLON value_or_list'''
         # Handle 'can' keyword specially
         key = 'can' if p[1] == 'can' else p[1]
         p[0] = {key: p[3]}
+    
+    def p_value_or_list(self, p):
+        '''value_or_list : value_list
+                        | value'''
+        p[0] = p[1]
+    
+    def p_value_list(self, p):
+        '''value_list : value_list COMMA value
+                     | value COMMA value'''
+        if len(p) == 4:
+            if isinstance(p[1], list):
+                p[0] = p[1] + [p[3]]
+            else:
+                p[0] = [p[1], p[3]]
     
     def p_policy_rule_with_condition(self, p):
         '''policy_rule : policy_type ACTION COLON action_list ON RESOURCE COLON resource_spec IF condition'''
@@ -179,7 +193,7 @@ class SPLParser:
             error_msg = f"Syntax error at line {p.lineno}: Unexpected token '{p.value}' (type: {p.type})"
             self.errors.append(error_msg)
             print(error_msg)
-            # Skip the bad token
+            # Skip the bad token and try to recover
             self.parser.errok()
         else:
             error_msg = "Syntax error: Unexpected end of file"
@@ -187,9 +201,15 @@ class SPLParser:
             print(error_msg)
     
     def build(self, **kwargs):
-        """Build the parser"""
-        # Suppress output files
-        self.parser = yacc.yacc(module=self, debug=False, write_tables=False, **kwargs)
+        """Build the parser - suppress PLY warnings"""
+        # Suppress PLY output and warnings
+        self.parser = yacc.yacc(
+            module=self, 
+            debug=False, 
+            write_tables=False,
+            errorlog=yacc.NullLogger(),  # Suppress warnings
+            **kwargs
+        )
         return self.parser
     
     def parse(self, data, debug=False):
@@ -206,7 +226,12 @@ class SPLParser:
         if not self.parser:
             self.build()
         
+        # Reset lexer state before parsing
+        self.lexer.reset()
+        
+        # Clear previous errors
         self.errors = []
+        
         result = self.parser.parse(data, lexer=self.lexer.lexer, debug=debug)
         
         if self.errors:
@@ -226,6 +251,10 @@ if __name__ == '__main__':
     sample_code = '''
     ROLE Admin {
         can: *
+    }
+    
+    ROLE Developer {
+        can: read, write
     }
     
     RESOURCE DB_Finance {

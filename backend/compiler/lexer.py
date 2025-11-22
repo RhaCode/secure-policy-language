@@ -1,6 +1,6 @@
 """
 backend/compiler/lexer.py
-Secure Policy Language (SPL) Lexer
+Secure Policy Language (SPL) Lexer - FIXED VERSION
 Tokenizes SPL source code using PLY (Python Lex-Yacc)
 """
 
@@ -26,12 +26,11 @@ class SPLLexer:
         'EQUALS', 'NOT_EQUALS',
         'LESS_THAN', 'GREATER_THAN',
         'LESS_EQUAL', 'GREATER_EQUAL',
-        'ASSIGN',
         
         # Delimiters
         'LBRACE', 'RBRACE',
         'LPAREN', 'RPAREN',
-        'COMMA', 'COLON', 'SEMICOLON',
+        'COMMA', 'COLON',
         'DOT', 'ASTERISK',
     )
     
@@ -42,7 +41,6 @@ class SPLLexer:
     t_GREATER_EQUAL = r'>='
     t_LESS_THAN    = r'<'
     t_GREATER_THAN = r'>'
-    t_ASSIGN       = r'='
     
     t_LBRACE       = r'\{'
     t_RBRACE       = r'\}'
@@ -50,7 +48,6 @@ class SPLLexer:
     t_RPAREN       = r'\)'
     t_COMMA        = r','
     t_COLON        = r':'
-    t_SEMICOLON    = r';'
     t_DOT          = r'\.'
     t_ASTERISK     = r'\*'
     
@@ -128,6 +125,11 @@ class SPLLexer:
         self.lexer = lex.lex(module=self, **kwargs)
         return self.lexer
     
+    def reset(self):
+        """Reset lexer state - CRITICAL for fixing line number accumulation"""
+        if self.lexer:
+            self.lexer.lineno = 1
+    
     def tokenize(self, data):
         """
         Tokenize input data and return list of tokens
@@ -140,6 +142,9 @@ class SPLLexer:
         """
         if not self.lexer:
             self.build()
+        
+        # CRITICAL FIX: Reset line number before each tokenization
+        self.reset()
         
         self.lexer.input(data)
         self.tokens_list = []
@@ -161,6 +166,9 @@ class SPLLexer:
         """
         if not self.lexer:
             self.build()
+        
+        # Reset before testing
+        self.reset()
         
         self.lexer.input(data)
         
