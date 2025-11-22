@@ -1,3 +1,4 @@
+// frontend/src/components/CodeEditor.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Code2 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
@@ -77,9 +78,9 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ code, onCodeChange, errors, cla
   const warningCount = errors.filter(e => e.type === 'WARNING' || e.type === 'RISK').length;
 
   return (
-    <div className={`${isDark ? 'border-[#3F3F46] bg-[#242426]' : 'border-[#D1D5DB] bg-white'} border overflow-hidden shadow-sm flex flex-col ${className}`}>
+    <div className={`${isDark ? 'border-[#3F3F46] bg-[#242426]' : 'border-[#D1D5DB] bg-white'} border overflow-hidden flex flex-col h-full ${className}`}>
       {/* Editor Header */}
-      <div className={`${isDark ? 'bg-[#2D2E30] border-[#3F3F46]' : 'bg-[#F9FAFB] border-[#D1D5DB]'} px-4 py-3 border-b flex justify-between items-center`}>
+      <div className={`shrink-0 ${isDark ? 'bg-[#2D2E30] border-[#3F3F46]' : 'bg-[#F9FAFB] border-[#D1D5DB]'} px-4 py-3 border-b flex justify-between items-center`}>
         <div className="flex items-center gap-2">
           <Code2 size={18} className={isDark ? 'text-[#60A5FA]' : 'text-[#2563EB]'} />
           <h3 className={`font-semibold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>SPL Editor</h3>
@@ -104,11 +105,11 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ code, onCodeChange, errors, cla
       </div>
 
       {/* Editor Container */}
-      <div className={`flex ${isDark ? 'bg-[#1E1E1E]' : 'bg-[#F3F4F6]'}`}>
+      <div className="flex-1 overflow-hidden flex">
         {/* Line Numbers */}
         <div
           ref={lineNumbersRef}
-          className={`overflow-hidden ${isDark ? 'bg-[#1E1E1E] border-[#3F3F46]' : 'bg-[#F3F4F6] border-[#D1D5DB]'} border-r select-none`}
+          className={`overflow-y-auto ${isDark ? 'bg-[#1E1E1E] border-[#3F3F46]' : 'bg-[#F3F4F6] border-[#D1D5DB]'} border-r select-none shrink-0`}
           style={{ width: '60px' }}
         >
           {lines.map((_, i) => (
@@ -125,9 +126,9 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ code, onCodeChange, errors, cla
         </div>
 
         {/* Code Input */}
-        <div className="flex-1 relative">
+        <div className="flex-1 relative overflow-hidden">
           {/* Highlighted Lines Background */}
-          <div className="absolute inset-0 pointer-events-none font-mono text-sm leading-6">
+          <div className="absolute inset-0 pointer-events-none font-mono text-sm leading-6 overflow-hidden">
             {lines.map((_, i) => (
               <div
                 key={i}
@@ -146,10 +147,9 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ code, onCodeChange, errors, cla
             onSelect={handleCursorChange}
             onClick={handleCursorChange}
             onKeyUp={handleCursorChange}
-            className={`w-full resize-none ${isDark ? 'bg-[#242426] text-[#F3F4F6]' : 'bg-white text-[#111827]'} relative z-10 font-mono text-sm leading-6 px-4 py-1 focus:outline-none`}
+            className={`w-full h-full resize-none ${isDark ? 'bg-[#242426] text-[#F3F4F6]' : 'bg-white text-[#111827]'} relative z-10 font-mono text-sm leading-6 px-4 py-1 focus:outline-none overflow-auto`}
             style={{ 
               tabSize: 2,
-              minHeight: '700px'
             }}
             spellCheck="false"
             placeholder="Enter your SPL policy code here..."
@@ -159,7 +159,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ code, onCodeChange, errors, cla
 
       {/* Error Panel */}
       {errors.length > 0 && (
-        <div className={`border-t ${isDark ? 'bg-[#1E1E1E] border-[#3F3F46]' : 'bg-white border-[#D1D5DB]'} max-h-40 overflow-y-auto`}>
+        <div className={`shrink-0 border-t ${isDark ? 'bg-[#1E1E1E] border-[#3F3F46]' : 'bg-white border-[#D1D5DB]'} max-h-32 overflow-y-auto`}>
           {errors.map((error, index) => (
             <div
               key={index}

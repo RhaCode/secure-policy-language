@@ -1,3 +1,4 @@
+// frontend/src/App.tsx
 import { useState, useCallback, useMemo } from 'react';
 import { Play, Shield, Download, Code2, Moon, Sun } from 'lucide-react';
 import { useTheme } from './context/ThemeContext';
@@ -128,14 +129,14 @@ function App() {
   }, [compilationResult]);
 
   return (
-    <div className={`min-h-screen flex flex-col transition-colors ${
+    <div className={`h-screen flex flex-col transition-colors ${
       isDark 
         ? 'bg-[#1C1C1E]' 
         : 'bg-[#F3F4F6]'
     }`}>
       {/* Navbar */}
-      <header className={`border-b ${isDark ? 'bg-[#242426] border-[#3F3F46]' : 'bg-white border-[#D1D5DB]'} sticky top-0 z-50`}>
-        <div className="max-w-full px-2 sm:px-4 lg:px-4 py-2">
+      <header className={`border-b ${isDark ? 'bg-[#242426] border-[#3F3F46]' : 'bg-white border-[#D1D5DB]'} sticky top-0 z-50 shrink-0`}>
+        <div className="px-2 sm:px-4 lg:px-4 py-2">
           <div className="flex items-center justify-between">
             {/* Left - Branding */}
             <div className="flex items-center gap-3">
@@ -220,69 +221,66 @@ function App() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-hidden">
-        <div className="max-w-full h-full px-2 sm:px-2 lg:px-2 py-2">
-          <div className="flex flex-col gap-2 h-full">
+        <div className="h-full">
+          <div className="flex flex-col h-full">
             {/* Top Panel - Code Editor (60%) */}
-            <div className="h-3/5 flex flex-col min-w-0 max-h-[calc(100vh-300px)]">
-              <div className="flex-1 overflow-hidden flex flex-col">
-                <CodeEditor
-                  code={code}
-                  onCodeChange={setCode}
-                  errors={errors}
-                />
-              </div>
+            <div className="h-3/5 min-h-0">
+              <CodeEditor
+                code={code}
+                onCodeChange={setCode}
+                errors={errors}
+                className="h-full"
+              />
             </div>
 
             {/* Bottom Panel - Results (40%) */}
-            <div className="h-2/5 flex flex-col min-w-0">
-              <div className="flex-1 overflow-hidden flex flex-col">
-                {/* Tabs */}
-                <div className={`${isDark ? 'bg-[#2D2E30] border-[#3F3F46]' : 'bg-[#F9FAFB] border-[#D1D5DB]'} border-b flex shrink-0`}>
-                  <button
-                    onClick={() => setActiveTab('compilation')}
-                    className={`flex-1 px-4 py-2 text-sm font-semibold transition-all ${
-                      activeTab === 'compilation'
-                        ? isDark
-                          ? 'text-[#C7D2FE] border-b-2 border-[#C7D2FE] bg-[#312E81]/30'
-                          : 'text-[#3730A3] border-b-2 border-[#3730A3] bg-[#E0E7FF]/30'
-                        : isDark
-                        ? 'text-[#6B7280] hover:text-[#A1A1AA]'
-                        : 'text-[#9CA3AF] hover:text-[#6B7280]'
-                    }`}
-                  >
-                    Compilation
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('security')}
-                    className={`flex-1 px-6 py-4 text-sm font-semibold transition-all ${
-                      activeTab === 'security'
-                        ? isDark
-                          ? 'text-[#C7D2FE] border-b-2 border-[#C7D2FE] bg-[#312E81]/30'
-                          : 'text-[#3730A3] border-b-2 border-[#3730A3] bg-[#E0E7FF]/30'
-                        : isDark
-                        ? 'text-[#6B7280] hover:text-[#A1A1AA]'
-                        : 'text-[#9CA3AF] hover:text-[#6B7280]'
-                    }`}
-                  >
-                    Security
-                  </button>
-                </div>
+            <div className="h-2/5 min-h-0 flex flex-col">
+              {/* Tabs */}
+              <div className={`shrink-0 ${isDark ? 'bg-[#2D2E30] border-[#3F3F46]' : 'bg-[#F9FAFB] border-[#D1D5DB]'} border-b flex`}>
+                <button
+                  onClick={() => setActiveTab('compilation')}
+                  className={`flex-1 px-4 py-2 text-sm font-semibold transition-all ${
+                    activeTab === 'compilation'
+                      ? isDark
+                        ? 'text-[#C7D2FE] border-b-2 border-[#C7D2FE] bg-[#312E81]/30'
+                        : 'text-[#3730A3] border-b-2 border-[#3730A3] bg-[#E0E7FF]/30'
+                      : isDark
+                      ? 'text-[#6B7280] hover:text-[#A1A1AA]'
+                      : 'text-[#9CA3AF] hover:text-[#6B7280]'
+                  }`}
+                >
+                  Compilation
+                </button>
+                <button
+                  onClick={() => setActiveTab('security')}
+                  className={`flex-1 px-4 py-2 text-sm font-semibold transition-all ${
+                    activeTab === 'security'
+                      ? isDark
+                        ? 'text-[#C7D2FE] border-b-2 border-[#C7D2FE] bg-[#312E81]/30'
+                        : 'text-[#3730A3] border-b-2 border-[#3730A3] bg-[#E0E7FF]/30'
+                      : isDark
+                      ? 'text-[#6B7280] hover:text-[#A1A1AA]'
+                      : 'text-[#9CA3AF] hover:text-[#6B7280]'
+                  }`}
+                >
+                  Security
+                </button>
+              </div>
 
-                {/* Results Content */}
-                <div className="flex-1 overflow-y-auto">
-                  {activeTab === 'compilation' ? (
-                    <CompilerOutput
-                      compilationResult={compilationResult}
-                      isLoading={isCompiling}
-                      className="h-full"
-                    />
-                  ) : (
-                    <RiskReport
-                      securityAnalysis={securityAnalysis}
-                      className="h-full"
-                    />
-                  )}
-                </div>
+              {/* Results Content */}
+              <div className="flex-1 overflow-hidden">
+                {activeTab === 'compilation' ? (
+                  <CompilerOutput
+                    compilationResult={compilationResult}
+                    isLoading={isCompiling}
+                    className="h-full"
+                  />
+                ) : (
+                  <RiskReport
+                    securityAnalysis={securityAnalysis}
+                    className="h-full"
+                  />
+                )}
               </div>
             </div>
           </div>

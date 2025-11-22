@@ -1,3 +1,4 @@
+// frontend/src/components/CompilerOutput.tsx
 import React, { useState } from 'react';
 import { Code2, Shield } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
@@ -21,10 +22,12 @@ const CompilerOutput: React.FC<CompilerOutputProps> = ({ compilationResult, isLo
 
   if (isLoading) {
     return (
-      <div className={`${isDark ? 'border-[#3F3F46] bg-[#242426]' : 'border-[#D1D5DB] bg-white'} border rounded-lg ${className}`}>
-        <div className="p-6 text-center">
-          <div className={`animate-spin rounded-full h-8 w-8 border-b-2 ${isDark ? 'border-[#60A5FA]' : 'border-[#2563EB]'} mx-auto`}></div>
-          <p className={`mt-2 ${isDark ? 'text-[#A1A1AA]' : 'text-[#6B7280]'}`}>Compiling SPL code...</p>
+      <div className={`${isDark ? 'border-[#3F3F46] bg-[#242426]' : 'border-[#D1D5DB] bg-white'} border overflow-hidden flex flex-col h-full ${className}`}>
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="text-center">
+            <div className={`animate-spin rounded-full h-8 w-8 border-b-2 ${isDark ? 'border-[#60A5FA]' : 'border-[#2563EB]'} mx-auto`}></div>
+            <p className={`mt-2 ${isDark ? 'text-[#A1A1AA]' : 'text-[#6B7280]'}`}>Compiling SPL code...</p>
+          </div>
         </div>
       </div>
     );
@@ -32,21 +35,25 @@ const CompilerOutput: React.FC<CompilerOutputProps> = ({ compilationResult, isLo
 
   if (!compilationResult) {
     return (
-      <div className={`${isDark ? 'border-[#3F3F46] bg-[#242426]' : 'border-[#D1D5DB] bg-white'} border rounded-lg p-6 text-center ${className}`}>
-        <Code2 size={48} className={`mx-auto mb-4 ${isDark ? 'text-[#3F3F46]' : 'text-[#D1D5DB]'}`} />
-        <p className={isDark ? 'text-[#A1A1AA]' : 'text-[#6B7280]'}>Compilation results will appear here</p>
+      <div className={`${isDark ? 'border-[#3F3F46] bg-[#242426]' : 'border-[#D1D5DB] bg-white'} border overflow-hidden flex flex-col h-full ${className}`}>
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="text-center">
+            <Code2 size={48} className={`mx-auto mb-4 ${isDark ? 'text-[#3F3F46]' : 'text-[#D1D5DB]'}`} />
+            <p className={isDark ? 'text-[#A1A1AA]' : 'text-[#6B7280]'}>Compilation results will appear here</p>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!compilationResult.success) {
     return (
-      <div className={`${isDark ? 'border-red-800 bg-red-900/20' : 'border-red-200 bg-red-50'} border rounded-lg ${className}`}>
-        <div className={`p-4 border-b ${isDark ? 'border-red-800' : 'border-red-200'} flex items-center gap-2`}>
+      <div className={`${isDark ? 'border-red-800 bg-red-900/20' : 'border-red-200 bg-red-50'} border overflow-hidden flex flex-col h-full ${className}`}>
+        <div className={`shrink-0 p-4 border-b ${isDark ? 'border-red-800' : 'border-red-200'} flex items-center gap-2`}>
           <div className={isDark ? 'text-[#F87171]' : 'text-[#DC2626]'}>✕</div>
           <h3 className={`font-semibold ${isDark ? 'text-[#F87171]' : 'text-[#DC2626]'}`}>Compilation Failed</h3>
         </div>
-        <div className="p-4">
+        <div className="flex-1 p-4 overflow-auto">
           <p className={isDark ? 'text-[#F87171]' : 'text-[#DC2626]'}>{compilationResult.error}</p>
         </div>
       </div>
@@ -56,132 +63,135 @@ const CompilerOutput: React.FC<CompilerOutputProps> = ({ compilationResult, isLo
   const { stages } = compilationResult;
 
   return (
-    <div className={`${isDark ? 'border-[#3F3F46] bg-[#242426]' : 'border-[#D1D5DB] bg-white'} border rounded-lg overflow-hidden ${className}`}>
+    <div className={`${isDark ? 'border-[#3F3F46] bg-[#242426]' : 'border-[#D1D5DB] bg-white'} border overflow-hidden flex flex-col h-full ${className}`}>
       {/* Header */}
-      <div className={`${isDark ? 'bg-[#312E81] border-[#3F3F46]' : 'bg-[#E0E7FF] border-[#D1D5DB]'} border-b p-4 flex items-center gap-2`}>
+      <div className={`shrink-0 ${isDark ? 'bg-[#312E81] border-[#3F3F46]' : 'bg-[#E0E7FF] border-[#D1D5DB]'} border-b p-4 flex items-center gap-2`}>
         <div className={isDark ? 'text-[#C7D2FE]' : 'text-[#3730A3]'}>✓</div>
         <h3 className={`font-semibold ${isDark ? 'text-[#C7D2FE]' : 'text-[#3730A3]'}`}>Compilation Successful</h3>
       </div>
 
-      {/* Tokenization Section */}
-      <div className={`border-b ${isDark ? 'border-[#3F3F46]' : 'border-[#D1D5DB]'}`}>
-        <button
-          onClick={() => toggleSection('tokenization')}
-          className={`w-full p-4 text-left flex items-center justify-between ${isDark ? 'hover:bg-[#2D2E30]' : 'hover:bg-[#F9FAFB]'} transition-colors`}
-        >
-          <div className="flex items-center gap-3">
-            <Code2 size={16} className={isDark ? 'text-[#60A5FA]' : 'text-[#2563EB]'} />
-            <span className={`font-semibold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>Tokenization</span>
-            <div className={isDark ? 'text-[#10B981]' : 'text-[#059669]'}>✓</div>
-          </div>
-          {expandedSections.has('tokenization') ? '▼' : '▶'}
-        </button>
-        {expandedSections.has('tokenization') && (
-          <div className={`p-4 ${isDark ? 'bg-[#1E1E1E]' : 'bg-[#F9FAFB]'}`}>
-            <div className={`flex justify-between items-center mb-3 text-sm ${isDark ? 'text-[#A1A1AA]' : 'text-[#6B7280]'}`}>
-              <span>{stages.tokenization.token_count} tokens generated</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Parsing Section */}
-      <div className={`border-b ${isDark ? 'border-[#3F3F46]' : 'border-[#D1D5DB]'}`}>
-        <button
-          onClick={() => toggleSection('parsing')}
-          className={`w-full p-4 text-left flex items-center justify-between ${isDark ? 'hover:bg-[#2D2E30]' : 'hover:bg-[#F9FAFB]'} transition-colors`}
-        >
-          <div className="flex items-center gap-3">
-            <Code2 size={16} className={isDark ? 'text-[#8B5CF6]' : 'text-[#7C3AED]'} />
-            <span className={`font-semibold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>Parsing</span>
-            <div className={isDark ? 'text-[#10B981]' : 'text-[#059669]'}>✓</div>
-          </div>
-          {expandedSections.has('parsing') ? '▼' : '▶'}
-        </button>
-        {expandedSections.has('parsing') && (
-          <div className={`p-4 ${isDark ? 'bg-[#1E1E1E]' : 'bg-[#F9FAFB]'}`}>
-            <pre className={`text-sm ${isDark ? 'bg-[#242426] text-[#F3F4F6] border-[#3F3F46]' : 'bg-white text-[#111827] border-[#D1D5DB]'} p-3 rounded border overflow-x-auto`}>
-              {stages.parsing.ast}
-            </pre>
-          </div>
-        )}
-      </div>
-
-      {/* Semantic Analysis Section */}
-      {stages.semantic_analysis && (
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto">
+        {/* Tokenization Section */}
         <div className={`border-b ${isDark ? 'border-[#3F3F46]' : 'border-[#D1D5DB]'}`}>
           <button
-            onClick={() => toggleSection('semantic_analysis')}
+            onClick={() => toggleSection('tokenization')}
             className={`w-full p-4 text-left flex items-center justify-between ${isDark ? 'hover:bg-[#2D2E30]' : 'hover:bg-[#F9FAFB]'} transition-colors`}
           >
             <div className="flex items-center gap-3">
-              <Shield size={16} className={isDark ? 'text-[#F97316]' : 'text-[#D97706]'} />
-              <span className={`font-semibold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>Semantic Analysis</span>
+              <Code2 size={16} className={isDark ? 'text-[#60A5FA]' : 'text-[#2563EB]'} />
+              <span className={`font-semibold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>Tokenization</span>
               <div className={isDark ? 'text-[#10B981]' : 'text-[#059669]'}>✓</div>
             </div>
-            {expandedSections.has('semantic_analysis') ? '▼' : '▶'}
+            {expandedSections.has('tokenization') ? '▼' : '▶'}
           </button>
-          {expandedSections.has('semantic_analysis') && (
-            <div className={`p-4 ${isDark ? 'bg-[#1E1E1E]' : 'bg-[#F9FAFB]'} space-y-4`}>
-              {stages.semantic_analysis.statistics && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div className={`text-center p-3 ${isDark ? 'bg-[#242426] border-[#3F3F46]' : 'bg-white border-[#D1D5DB]'} rounded border`}>
-                    <div className={`font-semibold ${isDark ? 'text-[#60A5FA]' : 'text-[#2563EB]'}`}>
-                      {stages.semantic_analysis.statistics.roles_defined || 0}
-                    </div>
-                    <div className={isDark ? 'text-[#6B7280]' : 'text-[#6B7280]'}>Roles</div>
-                  </div>
-                  <div className={`text-center p-3 ${isDark ? 'bg-[#242426] border-[#3F3F46]' : 'bg-white border-[#D1D5DB]'} rounded border`}>
-                    <div className={`font-semibold ${isDark ? 'text-[#10B981]' : 'text-[#059669]'}`}>
-                      {stages.semantic_analysis.statistics.policies_defined || 0}
-                    </div>
-                    <div className={isDark ? 'text-[#6B7280]' : 'text-[#6B7280]'}>Policies</div>
-                  </div>
-                  <div className={`text-center p-3 ${isDark ? 'bg-[#242426] border-[#3F3F46]' : 'bg-white border-[#D1D5DB]'} rounded border`}>
-                    <div className={`font-semibold ${isDark ? 'text-[#F87171]' : 'text-[#DC2626]'}`}>
-                      {stages.semantic_analysis.statistics.conflicts_found || 0}
-                    </div>
-                    <div className={isDark ? 'text-[#6B7280]' : 'text-[#6B7280]'}>Conflicts</div>
-                  </div>
-                  <div className={`text-center p-3 ${isDark ? 'bg-[#242426] border-[#3F3F46]' : 'bg-white border-[#D1D5DB]'} rounded border`}>
-                    <div className={`font-semibold ${isDark ? 'text-[#8B5CF6]' : 'text-[#7C3AED]'}`}>
-                      {stages.semantic_analysis.statistics.resources_defined || 0}
-                    </div>
-                    <div className={isDark ? 'text-[#6B7280]' : 'text-[#6B7280]'}>Resources</div>
-                  </div>
-                </div>
-              )}
+          {expandedSections.has('tokenization') && (
+            <div className={`p-4 ${isDark ? 'bg-[#1E1E1E]' : 'bg-[#F9FAFB]'}`}>
+              <div className={`flex justify-between items-center mb-3 text-sm ${isDark ? 'text-[#A1A1AA]' : 'text-[#6B7280]'}`}>
+                <span>{stages.tokenization.token_count} tokens generated</span>
+              </div>
             </div>
           )}
         </div>
-      )}
 
-      {/* Code Generation Section */}
-      {stages.code_generation && (
-        <div>
+        {/* Parsing Section */}
+        <div className={`border-b ${isDark ? 'border-[#3F3F46]' : 'border-[#D1D5DB]'}`}>
           <button
-            onClick={() => toggleSection('code_generation')}
+            onClick={() => toggleSection('parsing')}
             className={`w-full p-4 text-left flex items-center justify-between ${isDark ? 'hover:bg-[#2D2E30]' : 'hover:bg-[#F9FAFB]'} transition-colors`}
           >
             <div className="flex items-center gap-3">
-              <Code2 size={16} className={isDark ? 'text-[#10B981]' : 'text-[#059669]'} />
-              <span className={`font-semibold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>Code Generation</span>
+              <Code2 size={16} className={isDark ? 'text-[#8B5CF6]' : 'text-[#7C3AED]'} />
+              <span className={`font-semibold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>Parsing</span>
               <div className={isDark ? 'text-[#10B981]' : 'text-[#059669]'}>✓</div>
             </div>
-            {expandedSections.has('code_generation') ? '▼' : '▶'}
+            {expandedSections.has('parsing') ? '▼' : '▶'}
           </button>
-          {expandedSections.has('code_generation') && (
+          {expandedSections.has('parsing') && (
             <div className={`p-4 ${isDark ? 'bg-[#1E1E1E]' : 'bg-[#F9FAFB]'}`}>
-              <div className={`flex justify-between items-center mb-3 text-sm ${isDark ? 'text-[#A1A1AA]' : 'text-[#6B7280]'}`}>
-                <span>Target format: {stages.code_generation.target_format}</span>
-              </div>
-              <pre className={`text-sm ${isDark ? 'bg-[#242426] text-[#F3F4F6] border-[#3F3F46]' : 'bg-white text-[#111827] border-[#D1D5DB]'} p-3 rounded border overflow-x-auto max-h-64`}>
-                {stages.code_generation.generated_code}
+              <pre className={`text-sm ${isDark ? 'bg-[#242426] text-[#F3F4F6] border-[#3F3F46]' : 'bg-white text-[#111827] border-[#D1D5DB]'} p-3 rounded border overflow-x-auto max-h-40`}>
+                {stages.parsing.ast}
               </pre>
             </div>
           )}
         </div>
-      )}
+
+        {/* Semantic Analysis Section */}
+        {stages.semantic_analysis && (
+          <div className={`border-b ${isDark ? 'border-[#3F3F46]' : 'border-[#D1D5DB]'}`}>
+            <button
+              onClick={() => toggleSection('semantic_analysis')}
+              className={`w-full p-4 text-left flex items-center justify-between ${isDark ? 'hover:bg-[#2D2E30]' : 'hover:bg-[#F9FAFB]'} transition-colors`}
+            >
+              <div className="flex items-center gap-3">
+                <Shield size={16} className={isDark ? 'text-[#F97316]' : 'text-[#D97706]'} />
+                <span className={`font-semibold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>Semantic Analysis</span>
+                <div className={isDark ? 'text-[#10B981]' : 'text-[#059669]'}>✓</div>
+              </div>
+              {expandedSections.has('semantic_analysis') ? '▼' : '▶'}
+            </button>
+            {expandedSections.has('semantic_analysis') && (
+              <div className={`p-4 ${isDark ? 'bg-[#1E1E1E]' : 'bg-[#F9FAFB]'} space-y-4`}>
+                {stages.semantic_analysis.statistics && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div className={`text-center p-3 ${isDark ? 'bg-[#242426] border-[#3F3F46]' : 'bg-white border-[#D1D5DB]'} rounded border`}>
+                      <div className={`font-semibold ${isDark ? 'text-[#60A5FA]' : 'text-[#2563EB]'}`}>
+                        {stages.semantic_analysis.statistics.roles_defined || 0}
+                      </div>
+                      <div className={isDark ? 'text-[#6B7280]' : 'text-[#6B7280]'}>Roles</div>
+                    </div>
+                    <div className={`text-center p-3 ${isDark ? 'bg-[#242426] border-[#3F3F46]' : 'bg-white border-[#D1D5DB]'} rounded border`}>
+                      <div className={`font-semibold ${isDark ? 'text-[#10B981]' : 'text-[#059669]'}`}>
+                        {stages.semantic_analysis.statistics.policies_defined || 0}
+                      </div>
+                      <div className={isDark ? 'text-[#6B7280]' : 'text-[#6B7280]'}>Policies</div>
+                    </div>
+                    <div className={`text-center p-3 ${isDark ? 'bg-[#242426] border-[#3F3F46]' : 'bg-white border-[#D1D5DB]'} rounded border`}>
+                      <div className={`font-semibold ${isDark ? 'text-[#F87171]' : 'text-[#DC2626]'}`}>
+                        {stages.semantic_analysis.statistics.conflicts_found || 0}
+                      </div>
+                      <div className={isDark ? 'text-[#6B7280]' : 'text-[#6B7280]'}>Conflicts</div>
+                    </div>
+                    <div className={`text-center p-3 ${isDark ? 'bg-[#242426] border-[#3F3F46]' : 'bg-white border-[#D1D5DB]'} rounded border`}>
+                      <div className={`font-semibold ${isDark ? 'text-[#8B5CF6]' : 'text-[#7C3AED]'}`}>
+                        {stages.semantic_analysis.statistics.resources_defined || 0}
+                      </div>
+                      <div className={isDark ? 'text-[#6B7280]' : 'text-[#6B7280]'}>Resources</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Code Generation Section */}
+        {stages.code_generation && (
+          <div>
+            <button
+              onClick={() => toggleSection('code_generation')}
+              className={`w-full p-4 text-left flex items-center justify-between ${isDark ? 'hover:bg-[#2D2E30]' : 'hover:bg-[#F9FAFB]'} transition-colors`}
+            >
+              <div className="flex items-center gap-3">
+                <Code2 size={16} className={isDark ? 'text-[#10B981]' : 'text-[#059669]'} />
+                <span className={`font-semibold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>Code Generation</span>
+                <div className={isDark ? 'text-[#10B981]' : 'text-[#059669]'}>✓</div>
+              </div>
+              {expandedSections.has('code_generation') ? '▼' : '▶'}
+            </button>
+            {expandedSections.has('code_generation') && (
+              <div className={`p-4 ${isDark ? 'bg-[#1E1E1E]' : 'bg-[#F9FAFB]'}`}>
+                <div className={`flex justify-between items-center mb-3 text-sm ${isDark ? 'text-[#A1A1AA]' : 'text-[#6B7280]'}`}>
+                  <span>Target format: {stages.code_generation.target_format}</span>
+                </div>
+                <pre className={`text-sm ${isDark ? 'bg-[#242426] text-[#F3F4F6] border-[#3F3F46]' : 'bg-white text-[#111827] border-[#D1D5DB]'} p-3 rounded border overflow-x-auto max-h-40`}>
+                  {stages.code_generation.generated_code}
+                </pre>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
