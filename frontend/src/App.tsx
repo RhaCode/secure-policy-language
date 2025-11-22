@@ -1,15 +1,12 @@
-import React, { useState, useCallback } from 'react';
-import { Play, Shield, Download, Code2 } from 'lucide-react';
+import { useState, useCallback, useMemo } from 'react';
+import { Play, Shield, Download, Code2, Moon, Sun } from 'lucide-react';
+import { useTheme } from './context/ThemeContext';
+import { apiService } from './services/api';
 import CodeEditor from './components/CodeEditor';
 import CompilerOutput from './components/CompilerOutput';
 import RiskReport from './components/RiskReport';
-import { apiService } from './services/api';
-import type { 
-  CompilationResponse, 
-  SecurityAnalysisResponse 
-} from './types';
+import type { CompilationResponse, SecurityAnalysisResponse, CompilationError } from './types';
 
-// Sample SPL code for demonstration
 const SAMPLE_CODE = `ROLE Admin {
   can: *
 }
@@ -37,6 +34,7 @@ USER Bob {
 }`;
 
 function App() {
+  const { isDark, toggleTheme } = useTheme();
   const [code, setCode] = useState(SAMPLE_CODE);
   const [compilationResult, setCompilationResult] = useState<CompilationResponse | null>(null);
   const [securityAnalysis, setSecurityAnalysis] = useState<SecurityAnalysisResponse | null>(null);
@@ -44,22 +42,19 @@ function App() {
   const [isAnalyzingSecurity, setIsAnalyzingSecurity] = useState(false);
   const [activeTab, setActiveTab] = useState<'compilation' | 'security'>('compilation');
 
-  // Extract errors from compilation result
-  const errors = React.useMemo(() => {
+  const errors = useMemo(() => {
     if (!compilationResult) return [];
     
-    const allErrors: Array<{ line: number; message: string; type: string }> = [];
+    const allErrors: CompilationError[] = [];
     
-    // Add parsing errors
-    if (compilationResult.stages.parsing.errors) {
-      compilationResult.stages.parsing.errors.forEach(error => {
+    if (compilationResult.stages?.parsing?.errors) {
+      compilationResult.stages.parsing.errors.forEach((error) => {
         allErrors.push({ line: 1, message: error.message, type: 'ERROR' });
       });
     }
     
-    // Add semantic analysis errors and warnings
-    if (compilationResult.stages.semantic_analysis) {
-      compilationResult.stages.semantic_analysis.errors?.forEach(error => {
+    if (compilationResult.stages?.semantic_analysis) {
+      compilationResult.stages.semantic_analysis.errors?.forEach((error) => {
         allErrors.push({ 
           line: error.line || 1, 
           message: error.message, 
@@ -67,7 +62,7 @@ function App() {
         });
       });
       
-      compilationResult.stages.semantic_analysis.warnings?.forEach(warning => {
+      compilationResult.stages.semantic_analysis.warnings?.forEach((warning) => {
         allErrors.push({ 
           line: warning.line || 1, 
           message: warning.message, 
@@ -90,10 +85,7 @@ function App() {
       setCompilationResult({
         success: false,
         error: error instanceof Error ? error.message : 'Compilation failed',
-        stages: {
-          tokenization: { success: false },
-          parsing: { success: false }
-        }
+        stages: { tokenization: { success: false }, parsing: { success: false } }
       });
     } finally {
       setIsCompiling(false);
@@ -136,27 +128,31 @@ function App() {
   }, [compilationResult]);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Navbar with Actions */}
-      <header className="border-b border-slate-700 bg-card sticky top-0 z-50">
+    <div className={`min-h-screen flex flex-col transition-colors ${
+      isDark 
+        ? 'bg-[#1C1C1E]' 
+        : 'bg-[#F3F4F6]'
+    }`}>
+      {/* Navbar */}
+      <header className={`border-b ${isDark ? 'bg-[#242426] border-[#3F3F46]' : 'bg-white border-[#D1D5DB]'} sticky top-0 z-50`}>
         <div className="max-w-full px-2 sm:px-4 lg:px-4 py-2">
           <div className="flex items-center justify-between">
             {/* Left - Branding */}
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-linear-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                <Code2 size={24} className="text-white" />
+              <div className={`w-10 h-10 ${isDark ? 'bg-[#3F3F46]' : 'bg-[#E5E7EB]'} flex items-center justify-center rounded-lg`}>
+                <Code2 size={24} className={isDark ? 'text-[#60A5FA]' : 'text-[#2563EB]'} />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white">SPL Compiler</h1>
-                <p className="text-xs text-slate-400">Security Policy Language</p>
+                <h1 className={`text-xl font-bold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>SPL Compiler</h1>
+                <p className={`text-xs ${isDark ? 'text-[#A1A1AA]' : 'text-[#6B7280]'}`}>Security Policy Language</p>
               </div>
             </div>
 
             {/* Center - File Info */}
-            <div className="hidden md:flex items-center gap-6 text-sm text-slate-400">
-              <div>Lines: <span className="text-white font-semibold">{code.split('\n').length}</span></div>
-              <div>Characters: <span className="text-white font-semibold">{code.length}</span></div>
-              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+            <div className={`hidden md:flex items-center gap-6 text-sm ${isDark ? 'text-[#A1A1AA]' : 'text-[#6B7280]'}`}>
+              <div>Lines: <span className={`font-semibold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>{code.split('\n').length}</span></div>
+              <div>Characters: <span className={`font-semibold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>{code.length}</span></div>
+              <div className={`w-2 h-2 rounded-full ${isDark ? 'bg-[#10B981]' : 'bg-[#059669]'}`}></div>
               <span>Ready</span>
             </div>
 
@@ -165,30 +161,58 @@ function App() {
               <button
                 onClick={handleCompile}
                 disabled={isCompiling}
-                className="flex items-center gap-2 px-4 py-2.5 bg-linear-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 group text-sm"
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  active:scale-95 shadow-md hover:shadow-lg
+                  ${isDark 
+                    ? 'bg-[#3F3F46] text-[#F3F4F6] hover:bg-[#52525B]' 
+                    : 'bg-[#E5E7EB] text-[#111827] hover:bg-[#D1D5DB]'
+                  }`}
               >
-                <Play size={16} className="group-hover:translate-x-0.5 transition-transform" />
-                {isCompiling ? 'Compiling...' : 'Compile'}
+                <Play size={16} />
+                <span>{isCompiling ? 'Compiling...' : 'Compile'}</span>
               </button>
 
               <button
                 onClick={handleSecurityAnalysis}
                 disabled={isAnalyzingSecurity}
-                className="flex items-center gap-2 px-4 py-2.5 bg-linear-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 group text-sm"
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  active:scale-95 shadow-md hover:shadow-lg
+                  ${isDark 
+                    ? 'bg-[#3F3F46] text-[#F3F4F6] hover:bg-[#52525B]' 
+                    : 'bg-[#F3F4F6] text-[#111827] hover:bg-[#E5E7EB]'
+                  }`}
               >
-                <Shield size={16} className="group-hover:translate-x-0.5 transition-transform" />
-                {isAnalyzingSecurity ? 'Scanning...' : 'Scan'}
+                <Shield size={16} />
+                <span>{isAnalyzingSecurity ? 'Scanning...' : 'Scan'}</span>
               </button>
 
-              {compilationResult?.stages.code_generation && (
+              {compilationResult?.stages?.code_generation && (
                 <button
                   onClick={handleDownload}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-all duration-200 group text-sm"
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all duration-200 
+                    active:scale-95 shadow-md hover:shadow-lg text-sm
+                    ${isDark 
+                      ? 'bg-[#3F3F46] text-[#F3F4F6] hover:bg-[#52525B]' 
+                      : 'bg-[#E5E7EB] text-[#111827] hover:bg-[#D1D5DB]'
+                    }`}
                 >
-                  <Download size={16} className="group-hover:translate-y-0.5 transition-transform" />
+                  <Download size={16} />
                   Export
                 </button>
               )}
+
+              <button
+                onClick={toggleTheme}
+                className={`p-2.5 rounded-lg transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg
+                  ${isDark
+                    ? 'bg-[#3F3F46] text-[#FBBF24] hover:bg-[#52525B]'
+                    : 'bg-[#E5E7EB] text-[#D97706] hover:bg-[#D1D5DB]'
+                  }`}
+              >
+                {isDark ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
             </div>
           </div>
         </div>
@@ -200,29 +224,30 @@ function App() {
           <div className="flex flex-col gap-2 h-full">
             {/* Top Panel - Code Editor (60%) */}
             <div className="h-3/5 flex flex-col min-w-0 max-h-[calc(100vh-300px)]">
-              <div className="flex-1 overflow-hidden shadow-2xl border border-slate-700 flex flex-col">
-                {/* Code Editor Component */}
-                <div className="flex-1 overflow-hidden">
-                  <CodeEditor
-                    code={code}
-                    onCodeChange={setCode}
-                    errors={errors}
-                  />
-                </div>
+              <div className="flex-1 overflow-hidden flex flex-col">
+                <CodeEditor
+                  code={code}
+                  onCodeChange={setCode}
+                  errors={errors}
+                />
               </div>
             </div>
 
             {/* Bottom Panel - Results (40%) */}
             <div className="h-2/5 flex flex-col min-w-0">
-              <div className="flex-1 overflow-hidden shadow-2xl border border-slate-700 flex flex-col">
+              <div className="flex-1 overflow-hidden flex flex-col">
                 {/* Tabs */}
-                <div className="bg-linear-to-r from-slate-700 to-slate-800 border-b border-slate-700 flex shrink-0">
+                <div className={`${isDark ? 'bg-[#2D2E30] border-[#3F3F46]' : 'bg-[#F9FAFB] border-[#D1D5DB]'} border-b flex shrink-0`}>
                   <button
                     onClick={() => setActiveTab('compilation')}
                     className={`flex-1 px-4 py-2 text-sm font-semibold transition-all ${
                       activeTab === 'compilation'
-                        ? 'text-cyan-400 border-b-2 border-cyan-400 bg-slate-700/50'
-                        : 'text-slate-400 hover:text-slate-300'
+                        ? isDark
+                          ? 'text-[#C7D2FE] border-b-2 border-[#C7D2FE] bg-[#312E81]/30'
+                          : 'text-[#3730A3] border-b-2 border-[#3730A3] bg-[#E0E7FF]/30'
+                        : isDark
+                        ? 'text-[#6B7280] hover:text-[#A1A1AA]'
+                        : 'text-[#9CA3AF] hover:text-[#6B7280]'
                     }`}
                   >
                     Compilation
@@ -231,8 +256,12 @@ function App() {
                     onClick={() => setActiveTab('security')}
                     className={`flex-1 px-6 py-4 text-sm font-semibold transition-all ${
                       activeTab === 'security'
-                        ? 'text-green-400 border-b-2 border-green-400 bg-slate-700/50'
-                        : 'text-slate-400 hover:text-slate-300'
+                        ? isDark
+                          ? 'text-[#C7D2FE] border-b-2 border-[#C7D2FE] bg-[#312E81]/30'
+                          : 'text-[#3730A3] border-b-2 border-[#3730A3] bg-[#E0E7FF]/30'
+                        : isDark
+                        ? 'text-[#6B7280] hover:text-[#A1A1AA]'
+                        : 'text-[#9CA3AF] hover:text-[#6B7280]'
                     }`}
                   >
                     Security

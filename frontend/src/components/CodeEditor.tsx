@@ -1,20 +1,16 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Code2 } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 import type { CodeEditorProps } from '../types';
-import { AlertCircle, CheckCircle2, Code2 } from 'lucide-react';
 
-const CodeEditor: React.FC<CodeEditorProps> = ({ 
-  code, 
-  onCodeChange, 
-  errors, 
-  className = '' 
-}) => {
+const CodeEditor: React.FC<CodeEditorProps> = ({ code, onCodeChange, errors, className = '' }) => {
+  const { isDark } = useTheme();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
   const [activeLineNumber, setActiveLineNumber] = useState(1);
 
   useEffect(() => {
     if (textareaRef.current) {
-      // Synchronize scroll between textarea and line numbers
       const handleScroll = () => {
         if (lineNumbersRef.current && textareaRef.current) {
           lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
@@ -33,7 +29,6 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Handle Tab key
     if (e.key === 'Tab') {
       e.preventDefault();
       const textarea = e.currentTarget;
@@ -42,7 +37,6 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       const newValue = code.substring(0, start) + '  ' + code.substring(end);
       onCodeChange(newValue);
       
-      // Move cursor after the inserted spaces
       setTimeout(() => {
         textarea.selectionStart = textarea.selectionEnd = start + 2;
       }, 0);
@@ -62,8 +56,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     const lineErrors = errors.filter(error => error.line === lineNumber);
     if (lineErrors.length > 0) {
       return lineErrors.some(error => error.type === 'ERROR') 
-        ? 'bg-red-50' 
-        : 'bg-yellow-50';
+        ? isDark ? 'bg-red-900/20' : 'bg-red-50'
+        : isDark ? 'bg-yellow-900/20' : 'bg-yellow-50';
     }
     return '';
   };
@@ -72,7 +66,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     const lineErrors = errors.filter(error => error.line === lineNumber);
     if (lineErrors.length > 0) {
       return lineErrors.some(error => error.type === 'ERROR') 
-        ? 'border-l-2 border-red-500' 
+        ? 'border-l-2 border-red-500'
         : 'border-l-2 border-yellow-500';
     }
     return '';
@@ -83,48 +77,45 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   const warningCount = errors.filter(e => e.type === 'WARNING' || e.type === 'RISK').length;
 
   return (
-    <div className={`border border-gray-300 overflow-hidden shadow-sm bg-white ${className}`}>
+    <div className={`${isDark ? 'border-[#3F3F46] bg-[#242426]' : 'border-[#D1D5DB] bg-white'} border overflow-hidden shadow-sm flex flex-col ${className}`}>
       {/* Editor Header */}
-      <div className="bg-linear-to-r from-blue-50 to-indigo-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+      <div className={`${isDark ? 'bg-[#2D2E30] border-[#3F3F46]' : 'bg-[#F9FAFB] border-[#D1D5DB]'} px-4 py-3 border-b flex justify-between items-center`}>
         <div className="flex items-center gap-2">
-          <Code2 size={18} className="text-blue-600" />
-          <h3 className="font-semibold text-gray-800">SPL Editor</h3>
+          <Code2 size={18} className={isDark ? 'text-[#60A5FA]' : 'text-[#2563EB]'} />
+          <h3 className={`font-semibold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>SPL Editor</h3>
         </div>
         <div className="flex gap-4 text-sm">
           {errorCount > 0 && (
-            <span className="flex items-center gap-1.5 text-red-600 font-medium">
-              <AlertCircle size={16} />
+            <span className={`flex items-center gap-1.5 font-medium ${isDark ? 'text-[#F87171]' : 'text-[#DC2626]'}`}>
               {errorCount} error{errorCount !== 1 ? 's' : ''}
             </span>
           )}
           {warningCount > 0 && (
-            <span className="flex items-center gap-1.5 text-yellow-600 font-medium">
-              <AlertCircle size={16} />
+            <span className={`flex items-center gap-1.5 font-medium ${isDark ? 'text-[#FBBF24]' : 'text-[#D97706]'}`}>
               {warningCount} warning{warningCount !== 1 ? 's' : ''}
             </span>
           )}
           {errors.length === 0 && code.trim() && (
-            <span className="flex items-center gap-1.5 text-green-600 font-medium">
-              <CheckCircle2 size={16} />
-              No issues
+            <span className={`flex items-center gap-1.5 font-medium ${isDark ? 'text-[#10B981]' : 'text-[#059669]'}`}>
+              ✓ No issues
             </span>
           )}
         </div>
       </div>
 
       {/* Editor Container */}
-      <div className="flex bg-gray-50">
+      <div className={`flex ${isDark ? 'bg-[#1E1E1E]' : 'bg-[#F3F4F6]'}`}>
         {/* Line Numbers */}
         <div
           ref={lineNumbersRef}
-          className="overflow-hidden bg-gray-100 border-r border-gray-300 select-none"
+          className={`overflow-hidden ${isDark ? 'bg-[#1E1E1E] border-[#3F3F46]' : 'bg-[#F3F4F6] border-[#D1D5DB]'} border-r select-none`}
           style={{ width: '60px' }}
         >
           {lines.map((_, i) => (
             <div
               key={i}
-              className={`px-3 py-1 text-right text-sm text-gray-500 font-mono leading-6 ${
-                i + 1 === activeLineNumber ? 'bg-blue-100 text-blue-700 font-semibold' : ''
+              className={`px-3 py-1 text-right text-sm ${isDark ? 'text-[#6B7280]' : 'text-[#9CA3AF]'} font-mono leading-6 ${
+                i + 1 === activeLineNumber ? isDark ? 'bg-[#312E81] text-[#C7D2FE] font-semibold' : 'bg-[#E0E7FF] text-[#3730A3] font-semibold' : ''
               } ${getLineClass(i + 1)} ${getLineIndicator(i + 1)}`}
               style={{ height: '24px' }}
             >
@@ -155,50 +146,32 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
             onSelect={handleCursorChange}
             onClick={handleCursorChange}
             onKeyUp={handleCursorChange}
-            className="w-full h-96 resize-none bg-transparent relative z-10 text-gray-900 font-mono text-sm leading-6 px-4 py-1 focus:outline-none"
+            className={`w-full resize-none ${isDark ? 'bg-[#242426] text-[#F3F4F6]' : 'bg-white text-[#111827]'} relative z-10 font-mono text-sm leading-6 px-4 py-1 focus:outline-none`}
             style={{ 
               tabSize: 2,
               minHeight: '700px'
             }}
             spellCheck="false"
-            placeholder="Enter your SPL policy code here...
-
-Example:
-ROLE Admin {
-  can: *
-}
-
-RESOURCE DB_Finance {
-  path: '/data/*'
-}
-
-ALLOW action: read, write ON RESOURCE: DB_Finance
-IF (time.hour >= 9 AND time.hour <= 17)"
+            placeholder="Enter your SPL policy code here..."
           />
         </div>
       </div>
 
       {/* Error Panel */}
       {errors.length > 0 && (
-        <div className="border-t border-gray-300 bg-white max-h-40 overflow-y-auto">
+        <div className={`border-t ${isDark ? 'bg-[#1E1E1E] border-[#3F3F46]' : 'bg-white border-[#D1D5DB]'} max-h-40 overflow-y-auto`}>
           {errors.map((error, index) => (
             <div
               key={index}
-              className={`px-4 py-2.5 border-b last:border-b-0 flex items-start gap-3 hover:bg-gray-50 transition-colors ${
+              className={`px-4 py-2.5 border-b last:border-b-0 flex items-start gap-3 ${
                 error.type === 'ERROR' 
-                  ? 'border-l-4 border-red-500' 
-                  : 'border-l-4 border-yellow-500'
-              }`}
+                  ? isDark ? 'border-l-4 border-red-500 hover:bg-red-900/10' : 'border-l-4 border-red-500 hover:bg-red-50'
+                  : isDark ? 'border-l-4 border-yellow-500 hover:bg-yellow-900/10' : 'border-l-4 border-yellow-500 hover:bg-yellow-50'
+              } transition-colors`}
             >
-              <AlertCircle 
-                size={16} 
-                className={`mt-0.5 shrink-0 ${
-                  error.type === 'ERROR' ? 'text-red-500' : 'text-yellow-500'
-                }`} 
-              />
               <div className="flex-1 text-sm">
-                <span className="font-semibold text-gray-900">Line {error.line}:</span>{' '}
-                <span className="text-gray-700">{error.message}</span>
+                <span className={`font-semibold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>Line {error.line}:</span>{' '}
+                <span className={isDark ? 'text-[#A1A1AA]' : 'text-[#6B7280]'}>{error.message}</span>
               </div>
             </div>
           ))}
