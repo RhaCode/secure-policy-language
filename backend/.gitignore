@@ -21,3 +21,9 @@ documents/
 
 notes.txt
 save.txt
+
+# SQLite database
+*.sqlite3
+*.db
+*.sqlite
+
