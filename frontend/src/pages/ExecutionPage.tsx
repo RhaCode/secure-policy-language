@@ -8,7 +8,6 @@ import { apiService } from '../services/api';
 export default function ExecutionPage() {
   const { isDark } = useTheme();
   const navigate = useNavigate();
-  const [compiledPolicy, setCompiledPolicy] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [resources, setResources] = useState<any[]>([]);
   const [selectedUser, setSelectedUser] = useState('');
@@ -24,30 +23,27 @@ export default function ExecutionPage() {
 
   const actions = ['read', 'write', 'delete', 'execute'];
 
-  // Load compiled policy from sessionStorage
+  // Check if policy is active and load initial data
   useEffect(() => {
-    const stored = sessionStorage.getItem('compiledPolicy');
-    if (stored) {
-      const policy = JSON.parse(stored);
-      setCompiledPolicy(policy);
-      activatePolicy(policy);
-    }
-  }, []);
-
-  // Load users, resources, and stats
-  useEffect(() => {
+    checkPolicyStatus();
     loadUsers();
     loadResources();
     loadStatistics();
   }, []);
 
-  const activatePolicy = async (policy: any) => {
+  const checkPolicyStatus = async () => {
     try {
-      await apiService.activatePolicy('current_policy', '', policy, 'system');
-      setPolicyActive(true);
-      console.log('✓ Policy activated successfully');
+      const policies = await apiService.getPolicies();
+      const currentPolicy = policies.find((p: any) => p.name === 'current_policy' && p.active);
+      setPolicyActive(!!currentPolicy);
+      
+      if (!currentPolicy) {
+        console.log('No active policy found - please compile a policy first');
+      } else {
+        console.log('✓ Active policy found:', currentPolicy.name);
+      }
     } catch (error) {
-      console.error('Failed to activate policy:', error);
+      console.error('Failed to check policy status:', error);
       setPolicyActive(false);
     }
   };
@@ -109,12 +105,21 @@ export default function ExecutionPage() {
     setResult(null);
 
     try {
+      console.log('📋 Access check request:', {
+        user: selectedUser,
+        action: selectedAction,
+        resource: selectedResource,
+        time: customTime
+      });
+
       const data = await apiService.checkAccess(
         selectedUser,
         selectedAction,
         selectedResource,
         { hour: customTime }
       );
+      
+      console.log('📋 Access check response:', data);
       setResult(data);
       
       // Refresh stats and logs
@@ -134,6 +139,21 @@ export default function ExecutionPage() {
     }
   };
 
+  const reloadPolicy = async () => {
+    try {
+      const stored = sessionStorage.getItem('compiledPolicy');
+      if (stored) {
+        const policy = JSON.parse(stored);
+        await apiService.activatePolicy('current_policy', '', policy, 'system');
+        await checkPolicyStatus();
+      } else {
+        console.log('No compiled policy found in session storage');
+      }
+    } catch (error) {
+      console.error('Failed to reload policy:', error);
+    }
+  };
+
   return (
     <div className="h-full flex flex-col">
       {/* Header Bar */}
@@ -149,11 +169,25 @@ export default function ExecutionPage() {
               <span>Back to Compiler</span>
             </button>
             
-            {policyActive && (
-              <span className={`text-sm px-3 py-1.5 rounded-lg ${isDark ? 'bg-green-900/30 text-green-400' : 'bg-green-100 text-green-700'}`}>
-                ✓ Policy Active
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {policyActive ? (
+                <span className={`text-sm px-3 py-1.5 rounded-lg ${isDark ? 'bg-green-900/30 text-green-400' : 'bg-green-100 text-green-700'}`}>
+                  ✓ Policy Active
+                </span>
+              ) : (
+                <span className={`text-sm px-3 py-1.5 rounded-lg ${isDark ? 'bg-yellow-900/30 text-yellow-400' : 'bg-yellow-100 text-yellow-700'}`}>
+                  ⚠ Policy Not Active
+                </span>
+              )}
+              
+              <button
+                onClick={reloadPolicy}
+                className={`text-sm px-3 py-1.5 rounded-lg transition-all hover:scale-105
+                  ${isDark ? 'bg-blue-900/30 text-blue-400 hover:bg-blue-800/30' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
+              >
+                🔄 Reload Policy
+              </button>
+            </div>
           </div>
 
           <button
