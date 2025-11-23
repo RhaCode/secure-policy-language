@@ -2,12 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, CheckCircle, XCircle, Clock, User, Database, Activity } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { apiService } from '../services/api';
 
 interface AccessTesterProps {
+  compiledPolicy?: any; // Pass compiled policy from parent
   className?: string;
 }
 
-const AccessTester: React.FC<AccessTesterProps> = ({ className = '' }) => {
+const AccessTester: React.FC<AccessTesterProps> = ({ compiledPolicy, className = '' }) => {
   const { isDark } = useTheme();
   const [users, setUsers] = useState<any[]>([]);
   const [resources, setResources] = useState<any[]>([]);
@@ -17,20 +19,27 @@ const AccessTester: React.FC<AccessTesterProps> = ({ className = '' }) => {
   const [customTime, setCustomTime] = useState(new Date().getHours());
   const [result, setResult] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [policyActive, setPolicyActive] = useState(false);
 
   const actions = ['read', 'write', 'delete', 'execute'];
 
-  // Load users and resources
+  // Load users and resources on mount
   useEffect(() => {
     loadUsers();
     loadResources();
   }, []);
 
+  // Auto-activate policy when compiledPolicy prop changes
+  useEffect(() => {
+    if (compiledPolicy) {
+      activateCompiledPolicy();
+    }
+  }, [compiledPolicy]);
+
   const loadUsers = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/execution/users');
-      const data = await response.json();
-      if (data.success) {
+      const data = await apiService.getUsers();
+      if (data.success && data.users) {
         setUsers(data.users);
         if (data.users.length > 0) {
           setSelectedUser(data.users[0].username);
@@ -43,9 +52,8 @@ const AccessTester: React.FC<AccessTesterProps> = ({ className = '' }) => {
 
   const loadResources = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/execution/resources');
-      const data = await response.json();
-      if (data.success) {
+      const data = await apiService.getResources();
+      if (data.success && data.resources) {
         setResources(data.resources);
         if (data.resources.length > 0) {
           setSelectedResource(data.resources[0].name);
@@ -56,27 +64,39 @@ const AccessTester: React.FC<AccessTesterProps> = ({ className = '' }) => {
     }
   };
 
+  const activateCompiledPolicy = async () => {
+    if (!compiledPolicy) return;
+
+    try {
+      await apiService.activatePolicy(
+        'current_policy',
+        '', // source code not needed for activation
+        compiledPolicy,
+        'system'
+      );
+      setPolicyActive(true);
+      console.log('✓ Policy activated successfully');
+    } catch (error) {
+      console.error('Failed to activate policy:', error);
+      setPolicyActive(false);
+    }
+  };
+
   const checkAccess = async () => {
+    if (!selectedUser || !selectedResource) {
+      return;
+    }
+
     setIsLoading(true);
     setResult(null);
 
     try {
-      const response = await fetch('http://localhost:5000/api/execution/check-access', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: selectedUser,
-          action: selectedAction,
-          resource: selectedResource,
-          context: {
-            hour: customTime,
-          },
-        }),
-      });
-
-      const data = await response.json();
+      const data = await apiService.checkAccess(
+        selectedUser,
+        selectedAction,
+        selectedResource,
+        { hour: customTime }
+      );
       setResult(data);
     } catch (error) {
       console.error('Access check failed:', error);
@@ -93,13 +113,29 @@ const AccessTester: React.FC<AccessTesterProps> = ({ className = '' }) => {
   return (
     <div className={`${isDark ? 'border-[#3F3F46] bg-[#242426]' : 'border-[#D1D5DB] bg-white'} border rounded-lg overflow-hidden flex flex-col h-full ${className}`}>
       {/* Header */}
-      <div className={`shrink-0 ${isDark ? 'bg-[#2D2E30] border-[#3F3F46]' : 'bg-[#F9FAFB] border-[#D1D5DB]'} border-b p-4 flex items-center gap-2`}>
-        <Shield size={18} className={isDark ? 'text-[#60A5FA]' : 'text-[#2563EB]'} />
-        <h3 className={`font-semibold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>Access Control Tester</h3>
+      <div className={`shrink-0 ${isDark ? 'bg-[#2D2E30] border-[#3F3F46]' : 'bg-[#F9FAFB] border-[#D1D5DB]'} border-b p-4 flex items-center justify-between`}>
+        <div className="flex items-center gap-2">
+          <Shield size={18} className={isDark ? 'text-[#60A5FA]' : 'text-[#2563EB]'} />
+          <h3 className={`font-semibold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>Access Control Tester</h3>
+        </div>
+        {policyActive && (
+          <span className={`text-xs px-2 py-1 rounded ${isDark ? 'bg-green-900/30 text-green-400' : 'bg-green-100 text-green-700'}`}>
+            ✓ Policy Active
+          </span>
+        )}
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">
+        {/* Policy Status */}
+        {!policyActive && (
+          <div className={`mb-6 p-4 rounded-lg border ${isDark ? 'bg-yellow-900/20 border-yellow-700 text-yellow-400' : 'bg-yellow-50 border-yellow-300 text-yellow-700'}`}>
+            <p className="text-sm">
+              💡 Compile your SPL code first to activate policies for testing
+            </p>
+          </div>
+        )}
+
         {/* Input Form */}
         <div className="space-y-4 mb-6">
           {/* User Selection */}
@@ -117,11 +153,15 @@ const AccessTester: React.FC<AccessTesterProps> = ({ className = '' }) => {
                   : 'bg-white border-[#D1D5DB] text-[#111827]'
               } focus:outline-none focus:ring-2 focus:ring-blue-500`}
             >
-              {users.map((user) => (
-                <option key={user.username} value={user.username}>
-                  {user.username} ({user.role})
-                </option>
-              ))}
+              {users.length === 0 ? (
+                <option>Loading users...</option>
+              ) : (
+                users.map((user) => (
+                  <option key={user.username} value={user.username}>
+                    {user.username} ({user.role})
+                  </option>
+                ))
+              )}
             </select>
           </div>
 
@@ -163,11 +203,15 @@ const AccessTester: React.FC<AccessTesterProps> = ({ className = '' }) => {
                   : 'bg-white border-[#D1D5DB] text-[#111827]'
               } focus:outline-none focus:ring-2 focus:ring-blue-500`}
             >
-              {resources.map((resource) => (
-                <option key={resource.name} value={resource.name}>
-                  {resource.name} ({resource.type})
-                </option>
-              ))}
+              {resources.length === 0 ? (
+                <option>Loading resources...</option>
+              ) : (
+                resources.map((resource) => (
+                  <option key={resource.name} value={resource.name}>
+                    {resource.name} ({resource.type})
+                  </option>
+                ))
+              )}
             </select>
           </div>
 
@@ -195,7 +239,7 @@ const AccessTester: React.FC<AccessTesterProps> = ({ className = '' }) => {
           {/* Check Access Button */}
           <button
             onClick={checkAccess}
-            disabled={isLoading || !selectedUser || !selectedResource}
+            disabled={isLoading || !selectedUser || !selectedResource || !policyActive}
             className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium text-sm transition-all duration-200 
               disabled:opacity-50 disabled:cursor-not-allowed
               active:scale-95 shadow-md hover:shadow-lg

@@ -9,6 +9,7 @@ import type {
 } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const EXECUTION_BASE = `${API_BASE}/execution`;
 
 class ApiService {
   private async fetchWithErrorHandling(url: string, options: RequestInit = {}) {
@@ -33,6 +34,8 @@ class ApiService {
       throw error;
     }
   }
+
+  // ============ COMPILER METHODS ============
 
   async compileSPL(code: string, analyze: boolean = false, generateCode: boolean = false, format: string = 'json'): Promise<CompilationResponse> {
     return this.fetchWithErrorHandling(`${API_BASE}/compile`, {
@@ -90,6 +93,111 @@ class ApiService {
 
   async healthCheck(): Promise<{ status: string; compiler: string }> {
     return this.fetchWithErrorHandling(`${API_BASE}/health`);
+  }
+
+  // ============ EXECUTION ENGINE METHODS ============
+
+  async checkAccess(username: string, action: string, resource: string, context?: any): Promise<any> {
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/check-access`, {
+      method: 'POST',
+      body: JSON.stringify({ username, action, resource, context }),
+    });
+  }
+
+  async activatePolicy(name: string, sourceCode: string, compiledJson: any, createdBy?: string): Promise<any> {
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/activate-policy`, {
+      method: 'POST',
+      body: JSON.stringify({ 
+        name, 
+        source_code: sourceCode, 
+        compiled_json: compiledJson,
+        created_by: createdBy 
+      }),
+    });
+  }
+
+  // User Management
+  async getUsers(): Promise<{ success: boolean; users: any[] }> {
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/users`);
+  }
+
+  async createUser(username: string, role: string, email?: string, department?: string): Promise<any> {
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/users`, {
+      method: 'POST',
+      body: JSON.stringify({ username, role, email, department }),
+    });
+  }
+
+  async getUser(username: string): Promise<any> {
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/users/${username}`);
+  }
+
+  async updateUser(username: string, data: any): Promise<any> {
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/users/${username}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteUser(username: string): Promise<any> {
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/users/${username}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Resource Management
+  async getResources(): Promise<{ success: boolean; resources: any[] }> {
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/resources`);
+  }
+
+  async createResource(name: string, type: string, path: string, description?: string, owner?: string): Promise<any> {
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/resources`, {
+      method: 'POST',
+      body: JSON.stringify({ name, type, path, description, owner }),
+    });
+  }
+
+  async getResource(name: string): Promise<any> {
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/resources/${name}`);
+  }
+
+  async updateResource(name: string, data: any): Promise<any> {
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/resources/${name}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteResource(name: string): Promise<any> {
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/resources/${name}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Audit and Statistics
+  async getAuditLogs(username?: string, resource?: string, limit: number = 100): Promise<any> {
+    const params = new URLSearchParams();
+    if (username) params.append('username', username);
+    if (resource) params.append('resource', resource);
+    params.append('limit', limit.toString());
+    
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/audit-logs?${params.toString()}`);
+  }
+
+  async getStatistics(): Promise<any> {
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/statistics`);
+  }
+
+  async getUserPermissions(username: string): Promise<any> {
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/user-permissions/${username}`);
+  }
+
+  async getPolicies(): Promise<any> {
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/policies`);
+  }
+
+  async getPolicyHistory(name: string): Promise<any> {
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/policies/${name}/history`);
   }
 }
 
