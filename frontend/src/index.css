@@ -5,7 +5,7 @@
     /* ---- Base ---- */
     --background: #F3F4F6;
     --foreground: #111827;
-    --card: #ceb7b7;
+    --card: #FFFFFF;
     --card-foreground: #111827;
     --popover: #FFFFFF;
     --popover-foreground: #1F2937;
@@ -66,6 +66,21 @@
     --scrollbar-track: #F3F4F6;
     --scrollbar-thumb: #9CA3AF;
     --scrollbar-thumb-hover: #6B7280;
+
+    /* ---- Management Page Specific ---- */
+    --bg-primary: var(--background);
+    --bg-secondary: var(--card);
+    --bg-tertiary: var(--muted);
+    --bg-card: var(--card);
+    --bg-input: var(--input);
+    --text-primary: var(--foreground);
+    --text-secondary: var(--muted-foreground);
+    --text-muted: var(--muted-foreground);
+    --hover-bg: var(--secondary);
+    --accent-blue: var(--primary);
+    --accent-green: var(--success);
+    --accent-red: var(--destructive);
+    --accent-yellow: var(--warning);
   }
 
   .dark {
@@ -127,8 +142,22 @@
     --scrollbar-track: #1E1E1E;
     --scrollbar-thumb: #52525B;
     --scrollbar-thumb-hover: #71717A;
-  }
 
+    /* ---- Management Page Specific ---- */
+    --bg-primary: var(--background);
+    --bg-secondary: var(--card);
+    --bg-tertiary: var(--muted);
+    --bg-card: var(--card);
+    --bg-input: var(--input);
+    --text-primary: var(--foreground);
+    --text-secondary: var(--muted-foreground);
+    --text-muted: var(--muted-foreground);
+    --hover-bg: var(--secondary);
+    --accent-blue: var(--primary);
+    --accent-green: var(--success);
+    --accent-red: var(--destructive);
+    --accent-yellow: var(--warning);
+  }
 
   * {
     border-color: var(--border);
@@ -165,4 +194,29 @@
     scrollbar-width: thin;
     scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   }
+
+  /* Utility classes using CSS variables */
+  .bg-primary { background-color: var(--bg-primary); }
+  .bg-secondary { background-color: var(--bg-secondary); }
+  .bg-tertiary { background-color: var(--bg-tertiary); }
+  .bg-card { background-color: var(--bg-card); }
+  .bg-input { background-color: var(--bg-input); }
+
+  .border-primary { border-color: var(--border); }
+
+  .text-primary { color: var(--text-primary); }
+  .text-secondary { color: var(--text-secondary); }
+  .text-muted { color: var(--text-muted); }
+
+  .hover-bg:hover { background-color: var(--hover-bg); }
+
+  .text-accent-blue { color: var(--accent-blue); }
+  .text-accent-green { color: var(--accent-green); }
+  .text-accent-red { color: var(--accent-red); }
+  .text-accent-yellow { color: var(--accent-yellow); }
+
+  .bg-accent-blue { background-color: var(--accent-blue); }
+  .bg-accent-green { background-color: var(--accent-green); }
+  .bg-accent-red { background-color: var(--accent-red); }
+  .bg-accent-yellow { background-color: var(--accent-yellow); }
 }

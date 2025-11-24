@@ -1,9 +1,10 @@
 // frontend/src/App.tsx
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Code2, Moon, Sun, Zap, FileCode } from 'lucide-react';
+import { Code2, Moon, Sun, Zap, FileCode, Settings } from 'lucide-react';
 import { useTheme } from './context/ThemeContext';
 import CompilerPage from './pages/CompilerPage';
 import ExecutionPage from './pages/ExecutionPage';
+import ManagementPage from './pages/ManagementPage';
 
 function App() {
   const { isDark, toggleTheme } = useTheme();
@@ -61,6 +62,21 @@ function App() {
                   <Zap size={16} />
                   Execution
                 </Link>
+                <Link
+                  to="/management"
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                    location.pathname === '/management'
+                      ? isDark
+                        ? 'bg-[#3F3F46] text-[#F59E0B]'
+                        : 'bg-[#FEF3C7] text-[#92400E]'
+                      : isDark
+                      ? 'text-[#A1A1AA] hover:bg-[#3F3F46] hover:text-[#F3F4F6]'
+                      : 'text-[#6B7280] hover:bg-[#E5E7EB] hover:text-[#111827]'
+                  }`}
+                >
+                  <Settings size={16} />
+                  Management
+                </Link>
               </nav>
             </div>
 
@@ -84,6 +100,7 @@ function App() {
         <Routes>
           <Route path="/" element={<CompilerPage />} />
           <Route path="/execution" element={<ExecutionPage />} />
+          <Route path="/management" element={<ManagementPage />} />
         </Routes>
       </main>
     </div>

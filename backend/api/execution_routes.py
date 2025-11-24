@@ -1,22 +1,31 @@
 """
 backend/api/execution_routes.py
-API Routes for Policy Execution and Management
+API Routes for Policy Execution and Management - FULLY FIXED VERSION
 """
 
 from flask import Blueprint, request, jsonify
-from database.db_manager import DatabaseManager
-from execution.policy_engine import PolicyEngine
 import json
 
-# Create Blueprint
-execution_api = Blueprint('execution', __name__)
+# Create Blueprint with correct URL prefix
+execution_api = Blueprint('execution', __name__, url_prefix='/api/execution')
 
-# Initialize database
-db = DatabaseManager()
-db.initialize_sample_data()
-
-# Store current policy engine (in production, use Redis or similar)
+# Lazy initialization
+_db = None
 _current_engine = None
+
+
+def get_db():
+    """Lazy load database manager"""
+    global _db
+    if _db is None:
+        try:
+            from database.db_manager import DatabaseManager
+            _db = DatabaseManager()
+            _db.initialize_sample_data()
+        except Exception as e:
+            print(f"Error initializing database: {e}")
+            return None
+    return _db
 
 
 def get_policy_engine():
@@ -24,11 +33,18 @@ def get_policy_engine():
     global _current_engine
     
     if _current_engine is None:
-        # Load active policy from database
-        policy_data = db.get_active_policy()
-        if policy_data:
-            compiled_json = json.loads(policy_data['compiled_json'])
-            _current_engine = PolicyEngine(compiled_json)
+        # Try to load active policy from database
+        db = get_db()
+        if db:
+            try:
+                policy_data = db.get_active_policy()
+                if policy_data:
+                    from execution.policy_engine import PolicyEngine
+                    compiled_json = json.loads(policy_data['compiled_json'])
+                    _current_engine = PolicyEngine(compiled_json)
+                    print(f"✓ Loaded active policy: {policy_data['name']} v{policy_data['version']}")
+            except Exception as e:
+                print(f"Error loading policy engine: {e}")
     
     return _current_engine
 
@@ -36,27 +52,21 @@ def get_policy_engine():
 def set_policy_engine(compiled_policy: dict):
     """Set new policy engine"""
     global _current_engine
-    _current_engine = PolicyEngine(compiled_policy)
+    try:
+        from execution.policy_engine import PolicyEngine
+        _current_engine = PolicyEngine(compiled_policy)
+        print("✓ Policy engine activated")
+        return True
+    except Exception as e:
+        print(f"✗ Error setting policy engine: {e}")
+        return False
 
 
 # ============ POLICY EXECUTION ============
 
 @execution_api.route('/check-access', methods=['POST'])
 def check_access():
-    """
-    Check if user has access to perform action on resource
-    
-    Request body:
-    {
-        "username": "Alice",
-        "action": "read",
-        "resource": "DB_Finance",
-        "context": {
-            "hour": 14,
-            "ip_address": "192.168.1.1"
-        }
-    }
-    """
+    """Check if user has access to perform action on resource"""
     try:
         data = request.get_json()
         
@@ -73,22 +83,27 @@ def check_access():
         engine = get_policy_engine()
         if not engine:
             return jsonify({
-                'error': 'No active policy loaded'
+                'error': 'No active policy loaded. Please compile and activate a policy first.'
             }), 500
         
         # Check access
         result = engine.check_access(username, action, resource, context)
         
         # Log to audit
-        ip_address = context.get('ip_address', request.remote_addr)
-        db.log_access(
-            username=username,
-            action=action,
-            resource=resource,
-            allowed=result['allowed'],
-            reason=result['reason'],
-            ip_address=ip_address
-        )
+        db = get_db()
+        if db:
+            ip_address = context.get('ip_address', request.remote_addr)
+            try:
+                db.log_access(
+                    username=username,
+                    action=action,
+                    resource=resource,
+                    allowed=result['allowed'],
+                    reason=result['reason'],
+                    ip_address=ip_address
+                )
+            except Exception as e:
+                print(f"Warning: Failed to log access: {e}")
         
         return jsonify(result)
     
@@ -100,21 +115,12 @@ def check_access():
 
 @execution_api.route('/activate-policy', methods=['POST'])
 def activate_policy():
-    """
-    Activate a compiled policy
-    
-    Request body:
-    {
-        "name": "production_policy",
-        "source_code": "...",
-        "compiled_json": {...}
-    }
-    """
+    """Activate a compiled policy"""
     try:
         data = request.get_json()
         
-        name = data.get('name', 'default_policy')
-        source_code = data.get('source_code')
+        name = data.get('name', 'auto_compiled_policy')
+        source_code = data.get('source_code', '')
         compiled_json = data.get('compiled_json')
         created_by = data.get('created_by', 'system')
         
@@ -124,15 +130,30 @@ def activate_policy():
             }), 400
         
         # Save to database
-        policy_id = db.save_compiled_policy(
-            name=name,
-            source_code=source_code or '',
-            compiled_json=json.dumps(compiled_json),
-            created_by=created_by
-        )
+        db = get_db()
+        policy_id = None
+        if db:
+            try:
+                policy_id = db.save_compiled_policy(
+                    name=name,
+                    source_code=source_code,
+                    compiled_json=json.dumps(compiled_json) if isinstance(compiled_json, dict) else compiled_json,
+                    created_by=created_by
+                )
+                print(f"✓ Policy saved to database (ID: {policy_id})")
+            except Exception as e:
+                print(f"✗ Failed to save policy: {e}")
+                return jsonify({
+                    'error': f'Failed to save policy: {str(e)}'
+                }), 500
         
         # Activate in engine
-        set_policy_engine(compiled_json)
+        success = set_policy_engine(compiled_json)
+        
+        if not success:
+            return jsonify({
+                'error': 'Failed to activate policy engine'
+            }), 500
         
         return jsonify({
             'success': True,
@@ -172,6 +193,12 @@ def get_user_permissions(username):
 def manage_users():
     """Get all users or create new user"""
     try:
+        db = get_db()
+        if not db:
+            return jsonify({
+                'error': 'Database not available'
+            }), 500
+        
         if request.method == 'GET':
             users = db.get_all_users()
             return jsonify({
@@ -210,6 +237,12 @@ def manage_users():
 def manage_user(username):
     """Get, update, or delete specific user"""
     try:
+        db = get_db()
+        if not db:
+            return jsonify({
+                'error': 'Database not available'
+            }), 500
+        
         if request.method == 'GET':
             user = db.get_user(username)
             if not user:
@@ -261,6 +294,12 @@ def manage_user(username):
 def manage_resources():
     """Get all resources or create new resource"""
     try:
+        db = get_db()
+        if not db:
+            return jsonify({
+                'error': 'Database not available'
+            }), 500
+        
         if request.method == 'GET':
             resources = db.get_all_resources()
             return jsonify({
@@ -272,17 +311,17 @@ def manage_resources():
             data = request.get_json()
             
             name = data.get('name')
-            type = data.get('type')
+            resource_type = data.get('type')
             path = data.get('path')
             description = data.get('description')
             owner = data.get('owner')
             
-            if not all([name, type, path]):
+            if not all([name, resource_type, path]):
                 return jsonify({
                     'error': 'Missing required fields: name, type, path'
                 }), 400
             
-            resource_id = db.create_resource(name, type, path, description, owner)
+            resource_id = db.create_resource(name, resource_type, path, description, owner)
             
             return jsonify({
                 'success': True,
@@ -300,6 +339,12 @@ def manage_resources():
 def manage_resource(name):
     """Get, update, or delete specific resource"""
     try:
+        db = get_db()
+        if not db:
+            return jsonify({
+                'error': 'Database not available'
+            }), 500
+        
         if request.method == 'GET':
             resource = db.get_resource(name)
             if not resource:
@@ -351,6 +396,12 @@ def manage_resource(name):
 def get_audit_logs():
     """Get audit logs with optional filtering"""
     try:
+        db = get_db()
+        if not db:
+            return jsonify({
+                'error': 'Database not available'
+            }), 500
+        
         username = request.args.get('username')
         resource = request.args.get('resource')
         limit = int(request.args.get('limit', 100))
@@ -373,6 +424,12 @@ def get_audit_logs():
 def get_statistics():
     """Get access statistics"""
     try:
+        db = get_db()
+        if not db:
+            return jsonify({
+                'error': 'Database not available'
+            }), 500
+        
         stats = db.get_access_statistics()
         
         return jsonify({
@@ -386,30 +443,31 @@ def get_statistics():
         }), 500
 
 
-# ============ POLICY HISTORY ============
+# ============ POLICY MANAGEMENT (FIXED) ============
 
 @execution_api.route('/policies', methods=['GET'])
 def get_policies():
-    """Get all policies"""
+    """Get active policy information - FIXED to return proper format"""
     try:
-        # This would return all policy names/versions
-        # For now, return active policy
+        db = get_db()
+        if not db:
+            return jsonify({
+                'error': 'Database not available'
+            }), 500
+        
         policy = db.get_active_policy()
         
         if policy:
-            return jsonify({
-                'success': True,
-                'active_policy': {
-                    'name': policy['name'],
-                    'version': policy['version'],
-                    'created_at': policy['created_at']
-                }
-            })
+            # Return as array with single active policy
+            return jsonify([{
+                'name': policy['name'],
+                'version': policy['version'],
+                'created_at': policy['created_at'],
+                'active': True
+            }])
         else:
-            return jsonify({
-                'success': True,
-                'active_policy': None
-            })
+            # Return empty array if no active policy
+            return jsonify([])
     
     except Exception as e:
         return jsonify({
@@ -421,6 +479,12 @@ def get_policies():
 def get_policy_history(name):
     """Get version history of a policy"""
     try:
+        db = get_db()
+        if not db:
+            return jsonify({
+                'error': 'Database not available'
+            }), 500
+        
         history = db.get_policy_history(name)
         
         return jsonify({
@@ -433,3 +497,18 @@ def get_policy_history(name):
         return jsonify({
             'error': str(e)
         }), 500
+
+
+# ============ HEALTH CHECK ============
+
+@execution_api.route('/health', methods=['GET'])
+def crud_health_check():
+    """Health check for execution engine"""
+    db = get_db()
+    engine = get_policy_engine()
+    
+    return jsonify({
+        'status': 'healthy',
+        'database': 'available' if db else 'unavailable',
+        'policy_engine': 'active' if engine else 'inactive'
+    })

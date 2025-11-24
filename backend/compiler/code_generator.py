@@ -1,11 +1,11 @@
 """
 backend/compiler/code_generator.py
-Target Code Generation for Secure Policy Language
-Generates executable policies in target formats (JSON, Python, etc.)
+Target Code Generation for Secure Policy Language - FIXED VERSION
+Generates executable policies with proper structure for execution engine
 """
 
 from compiler.parser import (
-    ASTVisitor, BinaryOpNode, AttributeNode, LiteralNode,
+    ASTVisitor, BinaryOpNode, AttributeNode, LiteralNode, UnaryOpNode,
     ProgramNode, RoleNode, UserNode, ResourceNode, PolicyNode
 )
 
@@ -14,7 +14,10 @@ class CodeGenerator(ASTVisitor):
     
     def __init__(self, target_format='json'):
         self.target_format = target_format
-        self.output = []
+        self.roles = []
+        self.users = []
+        self.resources = []
+        self.policies = []
         self.indent_level = 0
     
     def generate(self, ast):
@@ -22,7 +25,13 @@ class CodeGenerator(ASTVisitor):
         if ast is None:
             return None
         
-        self.output = []
+        # Reset collections
+        self.roles = []
+        self.users = []
+        self.resources = []
+        self.policies = []
+        
+        # Visit AST to collect definitions
         self.visit(ast)
         
         if self.target_format == 'json':
@@ -32,7 +41,7 @@ class CodeGenerator(ASTVisitor):
         elif self.target_format == 'yaml':
             return self._generate_yaml()
         else:
-            return '\n'.join(str(item) for item in self.output)
+            return str({"roles": self.roles, "users": self.users, "resources": self.resources, "policies": self.policies})
     
     def visit_ProgramNode(self, node):
         """Visit program node - process all statements"""
@@ -41,154 +50,62 @@ class CodeGenerator(ASTVisitor):
     
     def visit_RoleNode(self, node):
         """Generate code for role definitions"""
-        if self.target_format == 'json':
-            role_def = {
-                "type": "role",
-                "name": node.name,
-                "permissions": node.properties.get('can', []),
-                "line_number": node.line_number
+        permissions = node.properties.get('can', [])
+        
+        # Handle both single value and list
+        if not isinstance(permissions, list):
+            permissions = [permissions]
+        
+        role_def = {
+            "name": node.name,
+            "properties": {
+                "can": permissions
             }
-            self.output.append(role_def)
-        elif self.target_format == 'python':
-            # Generate Python class for role
-            perms = node.properties.get('can', [])
-            if perms == '*':
-                perms_str = "ALL_PERMISSIONS"
-            else:
-                perms_str = f"{perms}"
-            
-            python_code = f"""
-class {node.name}Role:
-    \"\"\"Auto-generated role: {node.name}\"\"\"
-    
-    def __init__(self):
-        self.name = "{node.name}"
-        self.permissions = {perms_str}
-    
-    def has_permission(self, action):
-        return action in self.permissions if self.permissions != "ALL_PERMISSIONS" else True
-"""
-            self.output.append(python_code.strip())
+        }
+        self.roles.append(role_def)
     
     def visit_UserNode(self, node):
         """Generate code for user definitions"""
-        if self.target_format == 'json':
-            user_def = {
-                "type": "user",
-                "name": node.name,
-                "properties": node.properties,
-                "line_number": node.line_number
-            }
-            self.output.append(user_def)
+        user_def = {
+            "name": node.name,
+            "properties": node.properties
+        }
+        self.users.append(user_def)
     
     def visit_ResourceNode(self, node):
         """Generate code for resource definitions"""
-        if self.target_format == 'json':
-            resource_def = {
-                "type": "resource", 
-                "name": node.name,
-                "path": node.properties.get('path', ''),
-                "properties": node.properties,
-                "line_number": node.line_number
-            }
-            self.output.append(resource_def)
+        resource_def = {
+            "name": node.name,
+            "properties": node.properties
+        }
+        self.resources.append(resource_def)
     
     def visit_PolicyNode(self, node):
         """Generate code for policy rules"""
-        if self.target_format == 'json':
-            policy_def = {
-                "type": "policy",
-                "effect": node.policy_type.lower(),
-                "actions": node.actions,
-                "resource": node.resource,
-                "condition": self._condition_to_dict(node.condition),
-                "line_number": node.line_number
-            }
-            self.output.append(policy_def)
-        elif self.target_format == 'python':
-            # Generate Python function for policy enforcement
-            actions_str = ', '.join(f'"{action}"' for action in node.actions)
-            condition_code = self._condition_to_python(node.condition)
-            
-            python_code = f"""
-def policy_{node.policy_type.lower()}_{node.resource.replace('.', '_')}(user, action, context):
-    \"\"\"Auto-generated policy: {node.policy_type} {node.actions} on {node.resource}\"\"\"
+        policy_def = {
+            "type": node.policy_type,  # ALLOW or DENY
+            "actions": node.actions,
+            "resource": node.resource,
+            "condition": self._serialize_condition(node.condition)
+        }
+        self.policies.append(policy_def)
     
-    # Check action
-    if action not in [{actions_str}]:
-        return None  # This policy doesn't apply
-    
-    # Check resource
-    # Resource matching logic would go here
-    
-    # Check condition
-    if {condition_code}:
-        return "{node.policy_type.lower()}"  # "allow" or "deny"
-    
-    return None  # Condition not met
-"""
-            self.output.append(python_code.strip())
-    
-    def _condition_to_dict(self, condition):
-        """Convert condition AST to serializable format"""
+    def _serialize_condition(self, condition):
+        """Convert condition AST to serializable string format"""
         if condition is None:
             return None
         
         if isinstance(condition, BinaryOpNode):
-            return {
-                "operator": condition.operator,
-                "left": self._condition_to_dict(condition.left),
-                "right": self._condition_to_dict(condition.right),
-                "line_number": condition.line_number
-            }
-        elif isinstance(condition, AttributeNode):
-            return {
-                "type": "attribute",
-                "object": condition.object_name,
-                "attribute": condition.attribute_name,
-                "line_number": condition.line_number
-            }
-        elif isinstance(condition, LiteralNode):
-            return {
-                "type": "literal",
-                "value": condition.value,
-                "line_number": condition.line_number
-            }
+            left = self._serialize_condition(condition.left)
+            right = self._serialize_condition(condition.right)
+            return f"{left} {condition.operator} {right}"
         
-        return str(condition)
-    
-    def _condition_to_python(self, condition):
-        """Convert condition AST to Python code"""
-        if condition is None:
-            return "True"  # No condition means always apply
-        
-        if isinstance(condition, BinaryOpNode):
-            left_code = self._condition_to_python(condition.left)
-            right_code = self._condition_to_python(condition.right)
-            
-            # Map SPL operators to Python operators
-            operator_map = {
-                '==': '==',
-                '!=': '!=',
-                '<': '<',
-                '>': '>',
-                '<=': '<=',
-                '>=': '>=',
-                'AND': 'and',
-                'OR': 'or'
-            }
-            
-            python_op = operator_map.get(condition.operator, condition.operator)
-            return f"({left_code} {python_op} {right_code})"
+        elif isinstance(condition, UnaryOpNode):
+            operand = self._serialize_condition(condition.operand)
+            return f"{condition.operator} {operand}"
         
         elif isinstance(condition, AttributeNode):
-            # Convert user.role to context.get('user', {}).get('role')
-            if condition.object_name == 'user':
-                return f"context.get('user', {{}}).get('{condition.attribute_name}')"
-            elif condition.object_name == 'time':
-                return f"context.get('time', {{}}).get('{condition.attribute_name}')"
-            else:
-                return f"context.get('{condition.object_name}', {{}}).get('{condition.attribute_name}')"
+            return f"{condition.object_name}.{condition.attribute_name}"
         
         elif isinstance(condition, LiteralNode):
             if isinstance(condition.value, str):
@@ -196,34 +113,87 @@ def policy_{node.policy_type.lower()}_{node.resource.replace('.', '_')}(user, ac
             else:
                 return str(condition.value)
         
-        return "True"
+        return str(condition)
     
     def _generate_json(self):
-        """Generate JSON output"""
+        """Generate JSON output with proper structure for execution engine"""
         import json
-        return json.dumps(self.output, indent=2)
+        
+        output = {
+            "roles": self.roles,
+            "users": self.users,
+            "resources": self.resources,
+            "policies": self.policies,
+            "metadata": {
+                "version": "1.0",
+                "format": "spl-compiled",
+                "roles_count": len(self.roles),
+                "users_count": len(self.users),
+                "resources_count": len(self.resources),
+                "policies_count": len(self.policies)
+            }
+        }
+        
+        return json.dumps(output, indent=2)
     
     def _generate_python(self):
         """Generate Python code for policy enforcement"""
-        if not self.output:
-            return "# No policies to generate"
-        
-        # Combine all generated Python code
         header = '''"""
 Generated SPL Policy Enforcement Code
 Auto-generated from Secure Policy Language
 """
 
 from datetime import datetime
+from typing import Dict, Any, List, Optional
 
-# Role definitions
 '''
         
-        # Separate roles and policies
-        roles = [code for code in self.output if 'class' in code and 'Role' in code]
-        policies = [code for code in self.output if 'def policy_' in code]
+        # Generate role classes
+        roles_code = "# Role definitions\n"
+        for role in self.roles:
+            permissions = role['properties']['can']
+            perms_str = "['*']" if '*' in permissions else str(permissions)
+            
+            roles_code += f"""
+class {role['name']}Role:
+    def __init__(self):
+        self.name = "{role['name']}"
+        self.permissions = {perms_str}
+    
+    def has_permission(self, action: str) -> bool:
+        if '*' in self.permissions:
+            return True
+        return action in self.permissions
+
+"""
         
-        # Policy engine class
+        # Generate policy functions
+        policies_code = "# Policy functions\n"
+        for i, policy in enumerate(self.policies):
+            actions_str = ', '.join(f'"{action}"' for action in policy['actions'])
+            condition_code = self._condition_to_python_code(policy['condition'])
+            
+            policies_code += f"""
+def policy_{i}_{policy['type'].lower()}(user: Dict[str, Any], action: str, resource: str, context: Dict[str, Any]) -> Optional[str]:
+    \"\"\"Policy: {policy['type']} {policy['actions']} on {policy['resource']}\"\"\"
+    
+    # Check if action matches
+    if action not in [{actions_str}]:
+        return None
+    
+    # Check if resource matches
+    if resource != "{policy['resource']}":
+        return None
+    
+    # Evaluate condition
+    if {condition_code}:
+        return "{policy['type'].lower()}"
+    
+    return None
+
+"""
+        
+        # Generate engine class
         engine_code = '''
 class PolicyEngine:
     """Policy evaluation engine"""
@@ -231,51 +201,77 @@ class PolicyEngine:
     def __init__(self):
         self.policies = []
     
-    def add_policy(self, policy_function):
-        """Add a policy function to the engine"""
-        self.policies.append(policy_function)
+    def add_policy(self, policy_func):
+        self.policies.append(policy_func)
     
-    def evaluate(self, user, action, resource, context=None):
-        """Evaluate all policies for a request"""
+    def evaluate(self, user: Dict[str, Any], action: str, resource: str, context: Optional[Dict[str, Any]] = None) -> str:
+        """Evaluate all policies and return decision"""
         if context is None:
             context = {}
         
         decisions = []
-        
         for policy_func in self.policies:
-            result = policy_func(user, action, context)
-            if result is not None:
+            result = policy_func(user, action, resource, context)
+            if result:
                 decisions.append(result)
         
-        # Default deny if no explicit allow
-        if "allow" in decisions and "deny" not in decisions:
-            return "allow"
+        # Deny overrides allow
+        if 'deny' in decisions:
+            return 'deny'
+        elif 'allow' in decisions:
+            return 'allow'
         else:
-            return "deny"
+            return 'deny'  # Default deny
 
 # Initialize engine
 engine = PolicyEngine()
 
 '''
         
-        # Add policy registration
-        policy_registration = "# Policy registration\n"
-        for policy_code in policies:
-            # Extract function name
-            if 'def policy_' in policy_code:
-                func_name = policy_code.split('def ')[1].split('(')[0]
-                policy_registration += f"engine.add_policy({func_name})\n"
+        # Register policies
+        registration = "# Register policies\n"
+        for i, policy in enumerate(self.policies):
+            registration += f"engine.add_policy(policy_{i}_{policy['type'].lower()})\n"
         
-        full_code = header + '\n\n'.join(roles) + engine_code + '\n\n'.join(policies) + '\n\n' + policy_registration
-        return full_code
+        return header + roles_code + policies_code + engine_code + registration
+    
+    def _condition_to_python_code(self, condition_str):
+        """Convert condition string to Python code"""
+        if condition_str is None:
+            return "True"
+        
+        # Replace SPL operators with Python equivalents
+        python_code = condition_str
+        python_code = python_code.replace(" AND ", " and ")
+        python_code = python_code.replace(" OR ", " or ")
+        python_code = python_code.replace(" NOT ", " not ")
+        
+        # Replace attribute access
+        # user.role -> context.get('user', {}).get('role')
+        import re
+        
+        def replace_attribute(match):
+            obj = match.group(1)
+            attr = match.group(2)
+            return f"context.get('{obj}', {{}}).get('{attr}')"
+        
+        python_code = re.sub(r'(\w+)\.(\w+)', replace_attribute, python_code)
+        
+        return python_code
     
     def _generate_yaml(self):
         """Generate YAML output"""
         try:
             import yaml
-            return yaml.dump(self.output, default_flow_style=False, indent=2)
+            output = {
+                "roles": self.roles,
+                "users": self.users,
+                "resources": self.resources,
+                "policies": self.policies
+            }
+            return yaml.dump(output, default_flow_style=False, indent=2)
         except ImportError:
-            return "# YAML generation requires PyYAML package\n" + str(self.output)
+            return "# YAML generation requires PyYAML package\n"
     
     def get_supported_formats(self):
         """Return list of supported target formats"""
@@ -284,7 +280,6 @@ engine = PolicyEngine()
 
 # Example usage and testing
 if __name__ == '__main__':
-    # Test the code generator
     from compiler.parser import SPLParser
     
     sample_code = '''
@@ -292,12 +287,20 @@ if __name__ == '__main__':
         can: *
     }
     
+    ROLE Developer {
+        can: read, write
+    }
+    
     RESOURCE DB_Finance {
         path: "/data/financial"
     }
     
     ALLOW action: read, write ON RESOURCE: DB_Finance
-    IF (time.hour >= 9 AND time.hour <= 17)
+    IF (user.role == "Developer" AND time.hour >= 9 AND time.hour <= 17)
+    
+    USER Alice {
+        role: Admin
+    }
     '''
     
     # Parse the sample code
@@ -315,14 +318,6 @@ if __name__ == '__main__':
         print("JSON OUTPUT:")
         print("="*50)
         print(json_output)
-        
-        # Test Python generation
-        python_generator = CodeGenerator('python')
-        python_output = python_generator.generate(ast)
-        print("\n" + "="*50)
-        print("PYTHON OUTPUT:")
-        print("="*50)
-        print(python_output)
         
     else:
         print("✗ Parsing failed")

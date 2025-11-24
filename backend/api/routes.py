@@ -1,6 +1,6 @@
 """
 backend/api/routes.py
-API Routes for SPL Compiler
+API Routes for SPL Compiler - WITH AUTOMATIC POLICY STORAGE
 All endpoints for the Secure Policy Language compiler
 """
 
@@ -9,6 +9,16 @@ from compiler.semantic_analyzer import SemanticAnalyzer
 from compiler.lexer import SPLLexer
 from compiler.parser import SPLParser
 from compiler.ast_nodes import ASTPrinter
+import json
+
+# Import database and execution engine
+try:
+    from database.db_manager import DatabaseManager
+    from execution.policy_engine import PolicyEngine
+    DB_AVAILABLE = True
+except ImportError:
+    DB_AVAILABLE = False
+    print("Warning: Database not available. Policies will not be persisted.")
 
 # Create Blueprint for API routes
 api = Blueprint('api', __name__)
@@ -17,12 +27,52 @@ api = Blueprint('api', __name__)
 lexer = SPLLexer()
 parser = SPLParser()
 
+# Initialize database if available
+if DB_AVAILABLE:
+    db = DatabaseManager()
+    db.initialize_sample_data()
+    _current_engine = None
+else:
+    db = None
+    _current_engine = None
+
+
+def save_and_activate_policy(source_code: str, compiled_json: dict) -> bool:
+    """
+    Save compiled policy to database and activate it
+    Returns True if successful, False otherwise
+    """
+    global _current_engine
+    
+    if not DB_AVAILABLE or not db:
+        return False
+    
+    try:
+        # Save to database
+        policy_id = db.save_compiled_policy(
+            name='auto_compiled_policy',
+            source_code=source_code,
+            compiled_json=json.dumps(compiled_json),
+            created_by='system'
+        )
+        
+        # Activate in engine
+        _current_engine = PolicyEngine(compiled_json)
+        
+        print(f"✓ Policy saved (ID: {policy_id}) and activated successfully")
+        return True
+    except Exception as e:
+        print(f"✗ Failed to save/activate policy: {e}")
+        return False
+
+
 @api.route('/health', methods=['GET'])
 def health_check():
     """API health check"""
     return jsonify({
         "status": "healthy",
-        "compiler": "ready"
+        "compiler": "ready",
+        "database": "available" if DB_AVAILABLE else "unavailable"
     })
 
 @api.route('/tokenize', methods=['POST'])
@@ -121,6 +171,7 @@ def parse():
 def compile_spl():
     """
     Full compilation: Tokenize + Parse + Semantic Analysis + Code Generation
+    AUTOMATICALLY saves and activates policy on successful compilation
     """
     try:
         data = request.get_json()
@@ -238,6 +289,7 @@ def compile_spl():
             }
         
         # Step 4: Code Generation (if requested)
+        compiled_json = None
         if generate_code:
             from compiler.code_generator import CodeGenerator
             generator = CodeGenerator(target_format)
@@ -249,6 +301,29 @@ def compile_spl():
                 "generated_code": generated_code,
                 "supported_formats": generator.get_supported_formats()
             }
+            
+            # Parse the generated JSON for storage
+            if target_format == 'json' and generated_code:
+                try:
+                    compiled_json = json.loads(generated_code)
+                except json.JSONDecodeError:
+                    print("Warning: Generated code is not valid JSON")
+        
+        # Step 5: AUTOMATIC POLICY STORAGE & ACTIVATION
+        if compiled_json and DB_AVAILABLE:
+            policy_saved = save_and_activate_policy(source_code, compiled_json)
+            response["policy_activated"] = policy_saved
+            
+            if policy_saved:
+                response["message"] = "Policy compiled, saved, and activated successfully"
+            else:
+                response["message"] = "Policy compiled but could not be saved to database"
+        else:
+            response["policy_activated"] = False
+            if not DB_AVAILABLE:
+                response["message"] = "Policy compiled successfully (database not available)"
+            elif not compiled_json:
+                response["message"] = "Policy compiled successfully (no JSON output to save)"
         
         return jsonify(response)
     
