@@ -25,7 +25,7 @@ class SPLLexer:
         # Operators
         'EQUALS', 'NOT_EQUALS',
         'LESS_THAN', 'GREATER_THAN',
-        'LESS_EQUAL', 'GREATER_EQUAL',
+        'LESS_EQUAL', 'GREATER_EQUAL', 'ASSIGN',
         
         # Delimiters
         'LBRACE', 'RBRACE',
@@ -142,10 +142,13 @@ class SPLLexer:
         """
         if not self.lexer:
             self.build()
-        
+
         # CRITICAL FIX: Reset line number before each tokenization
         self.reset()
-        
+
+        # Ensure lexer is initialized (helps static analyzers and avoids None.attr errors)
+        assert self.lexer is not None, "Lexer failed to build"
+
         self.lexer.input(data)
         self.tokens_list = []
         
@@ -166,10 +169,13 @@ class SPLLexer:
         """
         if not self.lexer:
             self.build()
-        
+
         # Reset before testing
         self.reset()
-        
+
+        # Ensure lexer is initialized before use
+        assert self.lexer is not None, "Lexer failed to build"
+
         self.lexer.input(data)
         
         print("=" * 60)
