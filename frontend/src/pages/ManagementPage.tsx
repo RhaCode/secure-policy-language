@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Edit2, Trash2, Check, X, AlertCircle, RefreshCw, Plus,
-  User, Database, FileJson
+  User, Database, FileJson, Shield
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { apiService } from '../services/api';
@@ -288,83 +288,78 @@ export default function ManagementPage() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-primary">
-      {/* Header */}
-      <div className="shrink-0 bg-secondary border-b border-primary px-6 py-4">
-        <h2 className="text-2xl font-bold text-primary">System Management</h2>
-        <p className="text-sm text-secondary mt-1">Manage users, resources, and policies</p>
-      </div>
+    <div className="h-full bg-primary overflow-auto">
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-linear-to-br from-primary to-purple-600 flex items-center justify-center">
+            <Shield size={24} className="text-primary-foreground" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-primary">System Management</h1>
+            <p className="text-sm text-secondary">Manage users, resources, and policies</p>
+          </div>
+        </div>
 
-      {/* Tabs */}
-      <div className="shrink-0 bg-tertiary border-b border-primary flex">
-        {(['users', 'resources', 'policies'] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex items-center gap-2 px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
-              activeTab === tab
-                ? 'text-primary border-primary'
-                : 'text-secondary border-transparent hover:text-primary'
-            }`}
-          >
-            {tab === 'users' && <User size={18} />}
-            {tab === 'resources' && <Database size={18} />}
-            {tab === 'policies' && <FileJson size={18} />}
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
-          </button>
-        ))}
-      </div>
+        {/* Tabs */}
+        <div className="flex gap-2">
+          {(['users', 'resources', 'policies'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                activeTab === tab
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-input text-secondary hover:bg-tertiary'
+              }`}
+            >
+              {tab === 'users' && <User size={16} />}
+              {tab === 'resources' && <Database size={16} />}
+              {tab === 'policies' && <FileJson size={16} />}
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-6xl mx-auto">
-          {/* Loading State */}
-          {(userLoading || resourceLoading || policyLoading) && (
-            <div className="flex items-center justify-center p-8">
-              <RefreshCw className="animate-spin text-primary" size={24} />
-              <span className="ml-2 text-primary">Loading...</span>
-            </div>
-          )}
-
+        {/* Content Area */}
+        <div className="space-y-6">
           {/* USERS TAB */}
           {activeTab === 'users' && (
             <div className="space-y-6">
               {/* Add User Button */}
               {!showUserForm && (
-                <div className="flex justify-center">
-                  <button
-                    onClick={() => setShowUserForm(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-blue-600 transition-colors"
-                  >
-                    <Plus size={16} />
-                    Add New User
-                  </button>
-                </div>
+                <button
+                  onClick={() => setShowUserForm(true)}
+                  className="w-full max-w-md py-3 rounded-lg bg-linear-to-r from-primary to-blue-600 text-primary-foreground font-medium flex items-center justify-center gap-2 hover:from-blue-700 hover:to-blue-600 transition-all active:scale-95"
+                >
+                  <Plus size={18} />
+                  Add New User
+                </button>
               )}
 
               {/* Add/Edit User Form */}
               {showUserForm && (
-                <div className="bg-card rounded-lg border border-primary p-6">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="bg-card rounded-lg border border-primary p-6 space-y-4">
+                  <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-primary">
                       {editingUser ? 'Edit User' : 'Create New User'}
                     </h3>
                     <button
                       onClick={resetUserForm}
-                      className="p-1 hover-bg rounded-lg text-secondary transition-colors"
+                      className="p-1 hover:bg-primary/10 rounded-lg text-secondary transition-colors"
                     >
                       <X size={20} />
                     </button>
                   </div>
 
                   {userError && (
-                    <div className="mb-4 p-3 rounded-lg bg-destructive/20 border border-destructive text-destructive text-sm flex items-center gap-2">
+                    <div className="p-3 rounded-lg bg-destructive/20 border border-destructive text-destructive text-sm flex items-center gap-2">
                       <AlertCircle size={16} />
                       {userError}
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-primary mb-2">Username</label>
                       <input
@@ -372,7 +367,7 @@ export default function ManagementPage() {
                         value={userForm.username}
                         onChange={(e) => setUserForm({ ...userForm, username: e.target.value })}
                         disabled={!!editingUser}
-                        className="w-full px-4 py-2 rounded-lg bg-input border border-primary text-primary placeholder-muted disabled:opacity-50"
+                        className="w-full px-4 py-2 rounded-lg bg-input border border-primary text-primary placeholder-muted disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary"
                         placeholder="alice"
                       />
                     </div>
@@ -382,44 +377,44 @@ export default function ManagementPage() {
                         type="text"
                         value={userForm.role}
                         onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
-                        className="w-full px-4 py-2 rounded-lg bg-input border border-primary text-primary placeholder-muted"
+                        className="w-full px-4 py-2 rounded-lg bg-input border border-primary text-primary placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary"
                         placeholder="Admin, Developer, Guest..."
                       />
                     </div>
-                    <div>
+                    <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-primary mb-2">Email</label>
                       <input
                         type="email"
                         value={userForm.email}
                         onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
-                        className="w-full px-4 py-2 rounded-lg bg-input border border-primary text-primary placeholder-muted"
+                        className="w-full px-4 py-2 rounded-lg bg-input border border-primary text-primary placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary"
                         placeholder="alice@company.com"
                       />
                     </div>
-                    <div>
+                    <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-primary mb-2">Department</label>
                       <input
                         type="text"
                         value={userForm.department}
                         onChange={(e) => setUserForm({ ...userForm, department: e.target.value })}
-                        className="w-full px-4 py-2 rounded-lg bg-input border border-primary text-primary placeholder-muted"
+                        className="w-full px-4 py-2 rounded-lg bg-input border border-primary text-primary placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary"
                         placeholder="IT, Engineering..."
                       />
                     </div>
                   </div>
 
-                  <div className="flex gap-2 mt-4">
+                  <div className="flex gap-2">
                     <button
                       onClick={handleSaveUser}
                       disabled={userLoading}
-                      className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-blue-600 disabled:opacity-50"
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-success text-success-foreground rounded-lg hover:bg-success/90 disabled:opacity-50 transition-all"
                     >
                       <Check size={16} />
-                      {editingUser ? 'Update User' : 'Create User'}
+                      {editingUser ? 'Update' : 'Create'}
                     </button>
                     <button
                       onClick={resetUserForm}
-                      className="flex items-center gap-2 px-4 py-2 bg-tertiary text-primary rounded-lg hover-bg"
+                      className="flex items-center gap-2 px-4 py-2 bg-tertiary text-primary rounded-lg hover:bg-primary/10 transition-all"
                     >
                       <X size={16} />
                       Cancel
@@ -430,11 +425,11 @@ export default function ManagementPage() {
 
               {/* Users List */}
               <div className="bg-card rounded-lg border border-primary overflow-hidden">
-                <div className="px-6 py-4 border-b border-primary flex items-center justify-between">
+                <div className="px-6 py-4 flex items-center justify-between bg-tertiary">
                   <h3 className="text-lg font-semibold text-primary">Users ({users.length})</h3>
                   <button
                     onClick={loadUsers}
-                    className="p-2 hover-bg rounded-lg text-secondary"
+                    className="p-2 hover:bg-primary/10 rounded-lg text-secondary transition-colors"
                   >
                     <RefreshCw size={18} />
                   </button>
@@ -442,7 +437,7 @@ export default function ManagementPage() {
 
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-tertiary border-b border-primary">
+                    <thead className="bg-tertiary">
                       <tr>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-secondary">Username</th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-secondary">Role</th>
@@ -452,28 +447,40 @@ export default function ManagementPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-primary">
-                      {users.map((user) => (
-                        <tr key={user.username} className="hover:bg-tertiary transition-colors">
-                          <td className="px-6 py-4 font-medium text-primary">{user.username}</td>
-                          <td className="px-6 py-4 text-secondary">{user.role}</td>
-                          <td className="px-6 py-4 text-secondary">{user.email || '—'}</td>
-                          <td className="px-6 py-4 text-secondary">{user.department || '—'}</td>
-                          <td className="px-6 py-4 flex gap-2">
-                            <button
-                              onClick={() => handleEditUser(user)}
-                              className="p-2 hover:bg-blue-900/30 text-primary rounded-lg transition-colors"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteUser(user.username)}
-                              className="p-2 hover:bg-red-900/30 text-destructive rounded-lg transition-colors"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                      {users.length > 0 ? (
+                        users.map((user) => (
+                          <tr key={user.username} className="hover:bg-tertiary transition-colors">
+                            <td className="px-6 py-4 font-medium text-primary">{user.username}</td>
+                            <td className="px-6 py-4">
+                              <span className="px-2 py-1 rounded-full bg-primary/20 text-primary text-xs font-medium">
+                                {user.role}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-secondary text-sm">{user.email || '—'}</td>
+                            <td className="px-6 py-4 text-secondary text-sm">{user.department || '—'}</td>
+                            <td className="px-6 py-4 flex gap-2">
+                              <button
+                                onClick={() => handleEditUser(user)}
+                                className="p-2 hover:bg-primary/20 text-primary rounded-lg transition-colors"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteUser(user.username)}
+                                className="p-2 hover:bg-destructive/20 text-destructive rounded-lg transition-colors"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-8 text-center text-secondary">
+                            No users found. Create one to get started.
                           </td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -486,40 +493,38 @@ export default function ManagementPage() {
             <div className="space-y-6">
               {/* Add Resource Button */}
               {!showResourceForm && (
-                <div className="flex justify-center">
-                  <button
-                    onClick={() => setShowResourceForm(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-blue-600 transition-colors"
-                  >
-                    <Plus size={16} />
-                    Add New Resource
-                  </button>
-                </div>
+                <button
+                  onClick={() => setShowResourceForm(true)}
+                  className="w-full max-w-md py-3 rounded-lg bg-linear-to-r from-primary to-blue-600 text-primary-foreground font-medium flex items-center justify-center gap-2 hover:from-blue-700 hover:to-blue-600 transition-all active:scale-95"
+                >
+                  <Plus size={18} />
+                  Add New Resource
+                </button>
               )}
 
               {/* Add/Edit Resource Form */}
               {showResourceForm && (
-                <div className="bg-card rounded-lg border border-primary p-6">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="bg-card rounded-lg border border-primary p-6 space-y-4">
+                  <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-primary">
                       {editingResource ? 'Edit Resource' : 'Create New Resource'}
                     </h3>
                     <button
                       onClick={resetResourceForm}
-                      className="p-1 hover-bg rounded-lg text-secondary transition-colors"
+                      className="p-1 hover:bg-primary/10 rounded-lg text-secondary transition-colors"
                     >
                       <X size={20} />
                     </button>
                   </div>
 
                   {resourceError && (
-                    <div className="mb-4 p-3 rounded-lg bg-destructive/20 border border-destructive text-destructive text-sm flex items-center gap-2">
+                    <div className="p-3 rounded-lg bg-destructive/20 border border-destructive text-destructive text-sm flex items-center gap-2">
                       <AlertCircle size={16} />
                       {resourceError}
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-primary mb-2">Name</label>
                       <input
@@ -527,7 +532,7 @@ export default function ManagementPage() {
                         value={resourceForm.name}
                         onChange={(e) => setResourceForm({ ...resourceForm, name: e.target.value })}
                         disabled={!!editingResource}
-                        className="w-full px-4 py-2 rounded-lg bg-input border border-primary text-primary placeholder-muted disabled:opacity-50"
+                        className="w-full px-4 py-2 rounded-lg bg-input border border-primary text-primary placeholder-muted disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary"
                         placeholder="DB_Finance"
                       />
                     </div>
@@ -536,7 +541,7 @@ export default function ManagementPage() {
                       <select
                         value={resourceForm.type}
                         onChange={(e) => setResourceForm({ ...resourceForm, type: e.target.value })}
-                        className="w-full px-4 py-2 rounded-lg bg-input border border-primary text-primary"
+                        className="w-full px-4 py-2 rounded-lg bg-input border border-primary text-primary focus:outline-none focus:ring-2 focus:ring-primary"
                       >
                         {resourceTypes.map((type) => (
                           <option key={type} value={type}>
@@ -545,50 +550,50 @@ export default function ManagementPage() {
                         ))}
                       </select>
                     </div>
-                    <div>
+                    <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-primary mb-2">Path</label>
                       <input
                         type="text"
                         value={resourceForm.path}
                         onChange={(e) => setResourceForm({ ...resourceForm, path: e.target.value })}
-                        className="w-full px-4 py-2 rounded-lg bg-input border border-primary text-primary placeholder-muted"
+                        className="w-full px-4 py-2 rounded-lg bg-input border border-primary text-primary placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary"
                         placeholder="/data/financial"
                       />
                     </div>
-                    <div>
+                    <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-primary mb-2">Owner</label>
                       <input
                         type="text"
                         value={resourceForm.owner}
                         onChange={(e) => setResourceForm({ ...resourceForm, owner: e.target.value })}
-                        className="w-full px-4 py-2 rounded-lg bg-input border border-primary text-primary placeholder-muted"
+                        className="w-full px-4 py-2 rounded-lg bg-input border border-primary text-primary placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary"
                         placeholder="alice"
                       />
                     </div>
-                    <div className="col-span-2">
+                    <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-primary mb-2">Description</label>
                       <textarea
                         value={resourceForm.description}
                         onChange={(e) => setResourceForm({ ...resourceForm, description: e.target.value })}
-                        className="w-full px-4 py-2 rounded-lg bg-input border border-primary text-primary placeholder-muted resize-none"
+                        className="w-full px-4 py-2 rounded-lg bg-input border border-primary text-primary placeholder-muted resize-none focus:outline-none focus:ring-2 focus:ring-primary"
                         rows={3}
                         placeholder="Resource description..."
                       />
                     </div>
                   </div>
 
-                  <div className="flex gap-2 mt-4">
+                  <div className="flex gap-2">
                     <button
                       onClick={handleSaveResource}
                       disabled={resourceLoading}
-                      className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-blue-600 disabled:opacity-50"
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-success text-success-foreground rounded-lg hover:bg-success/90 disabled:opacity-50 transition-all"
                     >
                       <Check size={16} />
-                      {editingResource ? 'Update Resource' : 'Create Resource'}
+                      {editingResource ? 'Update' : 'Create'}
                     </button>
                     <button
                       onClick={resetResourceForm}
-                      className="flex items-center gap-2 px-4 py-2 bg-tertiary text-primary rounded-lg hover-bg"
+                      className="flex items-center gap-2 px-4 py-2 bg-tertiary text-primary rounded-lg hover:bg-primary/10 transition-all"
                     >
                       <X size={16} />
                       Cancel
@@ -599,11 +604,11 @@ export default function ManagementPage() {
 
               {/* Resources List */}
               <div className="bg-card rounded-lg border border-primary overflow-hidden">
-                <div className="px-6 py-4 border-b border-primary flex items-center justify-between">
+                <div className="px-6 py-4 flex items-center justify-between bg-tertiary">
                   <h3 className="text-lg font-semibold text-primary">Resources ({resources.length})</h3>
                   <button
                     onClick={loadResources}
-                    className="p-2 hover-bg rounded-lg text-secondary"
+                    className="p-2 hover:bg-primary/10 rounded-lg text-secondary transition-colors"
                   >
                     <RefreshCw size={18} />
                   </button>
@@ -611,7 +616,7 @@ export default function ManagementPage() {
 
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-tertiary border-b border-primary">
+                    <thead className="bg-tertiary">
                       <tr>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-secondary">Name</th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-secondary">Type</th>
@@ -621,32 +626,40 @@ export default function ManagementPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-primary">
-                      {resources.map((resource) => (
-                        <tr key={resource.name} className="hover:bg-tertiary transition-colors">
-                          <td className="px-6 py-4 font-medium text-primary">{resource.name}</td>
-                          <td className="px-6 py-4 text-secondary">
-                            <span className="px-2 py-1 rounded-full bg-blue-900/20 text-primary text-xs font-medium">
-                              {resource.type}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-secondary font-mono text-sm">{resource.path}</td>
-                          <td className="px-6 py-4 text-secondary">{resource.owner || '—'}</td>
-                          <td className="px-6 py-4 flex gap-2">
-                            <button
-                              onClick={() => handleEditResource(resource)}
-                              className="p-2 hover:bg-blue-900/30 text-primary rounded-lg transition-colors"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteResource(resource.name)}
-                              className="p-2 hover:bg-red-900/30 text-destructive rounded-lg transition-colors"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                      {resources.length > 0 ? (
+                        resources.map((resource) => (
+                          <tr key={resource.name} className="hover:bg-tertiary transition-colors">
+                            <td className="px-6 py-4 font-medium text-primary">{resource.name}</td>
+                            <td className="px-6 py-4">
+                              <span className="px-2 py-1 rounded-full bg-purple/20 text-purple text-xs font-medium">
+                                {resource.type}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-secondary font-mono text-sm">{resource.path}</td>
+                            <td className="px-6 py-4 text-secondary text-sm">{resource.owner || '—'}</td>
+                            <td className="px-6 py-4 flex gap-2">
+                              <button
+                                onClick={() => handleEditResource(resource)}
+                                className="p-2 hover:bg-primary/20 text-primary rounded-lg transition-colors"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteResource(resource.name)}
+                                className="p-2 hover:bg-destructive/20 text-destructive rounded-lg transition-colors"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-8 text-center text-secondary">
+                            No resources found. Create one to get started.
                           </td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -656,37 +669,52 @@ export default function ManagementPage() {
 
           {/* POLICIES TAB */}
           {activeTab === 'policies' && (
-            <div className="space-y-6">
-              {policies && (
-                <div className="bg-card rounded-lg border border-primary p-6">
-                  <h3 className="text-lg font-semibold text-primary mb-4">Active Policy</h3>
-                  {policies.active_policy ? (
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-secondary">Name:</span>
-                        <span className="font-medium text-primary">{policies.active_policy.name}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-secondary">Version:</span>
-                        <span className="font-medium text-primary">v{policies.active_policy.version}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-secondary">Created:</span>
-                        <span className="font-medium text-primary text-sm">
-                          {new Date(policies.active_policy.created_at).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="pt-4">
-                        <span className="px-3 py-1 rounded-full bg-success/30 text-success text-sm font-medium">
-                          ✓ Active
-                        </span>
-                      </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Policy Info Card */}
+              <div className="bg-card rounded-lg border border-primary p-6">
+                <h3 className="text-lg font-semibold text-primary mb-4 flex items-center gap-2">
+                  <FileJson size={20} />
+                  Active Policy
+                </h3>
+                {policyLoading ? (
+                  <div className="flex items-center justify-center p-4">
+                    <RefreshCw className="animate-spin text-primary" size={20} />
+                  </div>
+                ) : policies?.active_policy ? (
+                  <div className="space-y-3">
+                    <div className="flex justify-between py-2">
+                      <span className="text-secondary">Name:</span>
+                      <span className="font-medium text-primary">{policies.active_policy.name}</span>
                     </div>
-                  ) : (
-                    <p className="text-secondary">No active policy. Compile SPL code to create one.</p>
-                  )}
+                    <div className="flex justify-between py-2">
+                      <span className="text-secondary">Version:</span>
+                      <span className="font-medium text-primary">v{policies.active_policy.version}</span>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <span className="text-secondary">Created:</span>
+                      <span className="font-medium text-primary text-sm">
+                        {new Date(policies.active_policy.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="pt-4">
+                      <span className="px-3 py-1 rounded-full bg-success/30 text-success text-sm font-medium">
+                        ✓ Active
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-secondary text-sm">No active policy. Compile SPL code to create one.</p>
+                )}
+              </div>
+
+              {/* Policy Details */}
+              <div className="flex items-center justify-center bg-card rounded-lg border border-primary p-6">
+                <div className="text-center text-secondary">
+                  <FileJson size={48} className="mx-auto mb-4 opacity-50" />
+                  <h3 className="text-lg font-medium text-primary mb-2">Policy Management</h3>
+                  <p className="text-sm">Policy compilation and management features</p>
                 </div>
-              )}
+              </div>
             </div>
           )}
         </div>

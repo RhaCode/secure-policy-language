@@ -142,6 +142,7 @@ export default function CompilerPage() {
     setIsValidating(true);
     try {
       const result = await apiService.validateSPL(code);
+      console.log('Validation result:', result);
       setValidationResult(result);
       setActiveTab('debug');
       
