@@ -11,26 +11,11 @@ import DebugPanel from '../components/DebugPanel';
 import ResizablePanel from '../components/ResizablePanel';
 import type { CompilationResponse, SecurityAnalysisResponse, CompilationError, ParsingError, ValidateResponse } from '../types';
 
-const SAMPLE_CODE = `ROLE Admin { can: * }
-
-ROLE Developer { can: read, write }
-
-RESOURCE DB_Finance { path: "/data/financial" }
-
-ALLOW action: read, write ON RESOURCE: DB_Finance
-IF (user.role == "Developer" AND time.hour >= 9 AND time.hour <= 17)
-
-DENY action: delete ON RESOURCE: DB_Finance
-IF (user.role == "Developer")
-
-USER Alice { role: Admin }
-
-USER Bob { role: Developer }`;
 
 export default function CompilerPage() {
   const { isDark } = useTheme();
   const navigate = useNavigate();
-  const [code, setCode] = useState(SAMPLE_CODE);
+  const [code, setCode] = useState("");
   const [compilationResult, setCompilationResult] = useState<CompilationResponse | null>(null);
   const [securityAnalysis, setSecurityAnalysis] = useState<SecurityAnalysisResponse | null>(null);
   const [validationResult, setValidationResult] = useState<ValidateResponse | null>(null);
