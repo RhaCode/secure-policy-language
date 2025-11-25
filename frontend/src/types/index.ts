@@ -161,3 +161,22 @@ export interface RiskReportProps {
 export interface NavbarProps {
   className?: string;
 }
+
+// frontend/src/types.ts
+export interface CodeEditorProps {
+  code: string;
+  onCodeChange: (code: string) => void;
+  errors: CompilationError[];
+  className?: string;
+  onValidate?: () => void;
+  onCompile?: () => void;
+  onSecurityAnalysis?: () => void;
+  onDebug?: () => void;
+  onDownload?: () => void;
+  onExecute?: () => void;
+  isCompiling?: boolean;
+  isAnalyzingSecurity?: boolean;
+  isDebugging?: boolean;
+  isValidating?: boolean;
+  hasCompiledPolicy?: boolean;
+}

@@ -1,13 +1,14 @@
 // frontend/src/pages/CompilerPage.tsx
 import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Shield, Download, CheckCircle, Bug, Zap } from 'lucide-react';
+import { ChevronUp, ChevronDown, PanelRightOpen } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { apiService } from '../services/api';
 import CodeEditor from '../components/CodeEditor';
 import CompilerOutput from '../components/CompilerOutput';
 import RiskReport from '../components/RiskReport';
 import DebugPanel from '../components/DebugPanel';
+import ResizablePanel from '../components/ResizablePanel';
 import type { CompilationResponse, SecurityAnalysisResponse, CompilationError, ParsingError, ValidateResponse } from '../types';
 
 const SAMPLE_CODE = `ROLE Admin { can: * }
@@ -39,6 +40,7 @@ export default function CompilerPage() {
   const [isValidating, setIsValidating] = useState(false);
   const [isDebugging, setIsDebugging] = useState(false);
   const [activeTab, setActiveTab] = useState<'compilation' | 'security' | 'debug'>('compilation');
+  const [isResultsVisible, setIsResultsVisible] = useState(true);
 
   // Extract compiled policy for execution
   const compiledPolicy = useMemo(() => {
@@ -75,7 +77,7 @@ export default function CompilerPage() {
         allErrors.push({ 
           line: error.line || 1, 
           message: error.message, 
-          type: error.type 
+            type: error.type 
         });
       });
       
@@ -97,6 +99,10 @@ export default function CompilerPage() {
       const result = await apiService.compileSPL(code, true, true, 'json');
       setCompilationResult(result);
       setActiveTab('compilation');
+      // Auto-show results when compiling
+      if (!isResultsVisible) {
+        setIsResultsVisible(true);
+      }
     } catch (error) {
       console.error('Compilation failed:', error);
       setCompilationResult({
@@ -117,7 +123,7 @@ export default function CompilerPage() {
     } finally {
       setIsCompiling(false);
     }
-  }, [code]);
+  }, [code, isResultsVisible]);
 
   const handleSecurityAnalysis = useCallback(async () => {
     setIsAnalyzingSecurity(true);
@@ -125,6 +131,10 @@ export default function CompilerPage() {
       const result = await apiService.analyzeSecurity(code);
       setSecurityAnalysis(result);
       setActiveTab('security');
+      // Auto-show results when scanning
+      if (!isResultsVisible) {
+        setIsResultsVisible(true);
+      }
     } catch (error) {
       console.error('Security analysis failed:', error);
       setSecurityAnalysis({
@@ -136,7 +146,7 @@ export default function CompilerPage() {
     } finally {
       setIsAnalyzingSecurity(false);
     }
-  }, [code]);
+  }, [code, isResultsVisible]);
 
   const handleValidate = useCallback(async () => {
     setIsValidating(true);
@@ -145,6 +155,10 @@ export default function CompilerPage() {
       console.log('Validation result:', result);
       setValidationResult(result);
       setActiveTab('debug');
+      // Auto-show results when validating
+      if (!isResultsVisible) {
+        setIsResultsVisible(true);
+      }
       
       if (result.valid) {
         console.log('✓ Code is valid');
@@ -161,7 +175,7 @@ export default function CompilerPage() {
     } finally {
       setIsValidating(false);
     }
-  }, [code]);
+  }, [code, isResultsVisible]);
 
   const handleDebug = useCallback(async () => {
     setIsDebugging(true);
@@ -184,6 +198,10 @@ export default function CompilerPage() {
         semantic: semanticResult
       });
       setActiveTab('debug');
+      // Auto-show results when debugging
+      if (!isResultsVisible) {
+        setIsResultsVisible(true);
+      }
     } catch (error) {
       console.error('Debug failed:', error);
       setDebugData({
@@ -193,7 +211,7 @@ export default function CompilerPage() {
     } finally {
       setIsDebugging(false);
     }
-  }, [code]);
+  }, [code, isResultsVisible]);
 
   const handleDownload = useCallback(() => {
     if (compilationResult?.stages.code_generation?.generated_code) {
@@ -220,151 +238,140 @@ export default function CompilerPage() {
     }
   }, [compiledPolicy, code, navigate]);
 
-  return (
+  const toggleResultsVisibility = () => {
+    setIsResultsVisible(!isResultsVisible);
+  };
+
+  const ResultsPanel = (
     <div className="h-full flex flex-col">
-      {/* Action Bar */}
-      <div className={`shrink-0 ${isDark ? 'bg-[#2D2E30] border-[#3F3F46]' : 'bg-[#F9FAFB] border-[#D1D5DB]'} border-b px-4 py-3`}>
-        <div className="flex items-center gap-3 justify-end">
-          <button
-            onClick={handleValidate}
-            disabled={isValidating}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 
-              disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 shadow-md hover:shadow-lg
-              ${isDark ? 'bg-[#3F3F46] text-[#F3F4F6] hover:bg-[#52525B]' : 'bg-[#E5E7EB] text-[#111827] hover:bg-[#D1D5DB]'}`}
-          >
-            <CheckCircle size={16} />
-            {isValidating ? 'Validating...' : 'Validate'}
-          </button>
-
-          <button
-            onClick={handleCompile}
-            disabled={isCompiling}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 
-              disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 shadow-md hover:shadow-lg
-              ${isDark ? 'bg-[#3F3F46] text-[#F3F4F6] hover:bg-[#52525B]' : 'bg-[#E5E7EB] text-[#111827] hover:bg-[#D1D5DB]'}`}
-          >
-            <Play size={16} />
-            {isCompiling ? 'Compiling...' : 'Compile'}
-          </button>
-
-          <button
-            onClick={handleSecurityAnalysis}
-            disabled={isAnalyzingSecurity}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 
-              disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 shadow-md hover:shadow-lg
-              ${isDark ? 'bg-[#3F3F46] text-[#F3F4F6] hover:bg-[#52525B]' : 'bg-[#F3F4F6] text-[#111827] hover:bg-[#E5E7EB]'}`}
-          >
-            <Shield size={16} />
-            {isAnalyzingSecurity ? 'Scanning...' : 'Scan'}
-          </button>
-
-          <button
-            onClick={handleDebug}
-            disabled={isDebugging}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 
-              disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 shadow-md hover:shadow-lg
-              ${isDark ? 'bg-[#3F3F46] text-[#F3F4F6] hover:bg-[#52525B]' : 'bg-[#E5E7EB] text-[#111827] hover:bg-[#D1D5DB]'}`}
-          >
-            <Bug size={16} />
-            {isDebugging ? 'Debugging...' : 'Debug'}
-          </button>
-
-          {compiledPolicy && (
-            <button
-              onClick={handleExecute}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 
-                active:scale-95 shadow-md hover:shadow-lg bg-[#10B981] text-white hover:bg-[#059669]`}
-            >
-              <Zap size={16} />
-              Execute Policy
-            </button>
-          )}
-
-          {compilationResult?.stages?.code_generation && (
-            <button
-              onClick={handleDownload}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all duration-200 
-                active:scale-95 shadow-md hover:shadow-lg text-sm
-                ${isDark ? 'bg-[#3F3F46] text-[#F3F4F6] hover:bg-[#52525B]' : 'bg-[#E5E7EB] text-[#111827] hover:bg-[#D1D5DB]'}`}
-            >
-              <Download size={16} />
-              Export
-            </button>
-          )}
-        </div>
+      {/* Tabs */}
+      <div className={`shrink-0 ${isDark ? 'bg-[#2D2E30] border-[#3F3F46]' : 'bg-[#F9FAFB] border-[#D1D5DB]'} border-b flex`}>
+        <button
+          onClick={() => setActiveTab('compilation')}
+          className={`flex-1 px-4 py-2 text-sm font-semibold transition-all ${
+            activeTab === 'compilation'
+              ? isDark ? 'text-[#C7D2FE] border-b-2 border-[#C7D2FE] bg-[#312E81]/30' : 'text-[#3730A3] border-b-2 border-[#3730A3] bg-[#E0E7FF]/30'
+              : isDark ? 'text-[#6B7280] hover:text-[#A1A1AA]' : 'text-[#9CA3AF] hover:text-[#6B7280]'
+          }`}
+        >
+          Compilation
+        </button>
+        <button
+          onClick={() => setActiveTab('security')}
+          className={`flex-1 px-4 py-2 text-sm font-semibold transition-all ${
+            activeTab === 'security'
+              ? isDark ? 'text-[#C7D2FE] border-b-2 border-[#C7D2FE] bg-[#312E81]/30' : 'text-[#3730A3] border-b-2 border-[#3730A3] bg-[#E0E7FF]/30'
+              : isDark ? 'text-[#6B7280] hover:text-[#A1A1AA]' : 'text-[#9CA3AF] hover:text-[#6B7280]'
+          }`}
+        >
+          Security
+        </button>
+        <button
+          onClick={() => setActiveTab('debug')}
+          className={`flex-1 px-4 py-2 text-sm font-semibold transition-all ${
+            activeTab === 'debug'
+              ? isDark ? 'text-[#C7D2FE] border-b-2 border-[#C7D2FE] bg-[#312E81]/30' : 'text-[#3730A3] border-b-2 border-[#3730A3] bg-[#E0E7FF]/30'
+              : isDark ? 'text-[#6B7280] hover:text-[#A1A1AA]' : 'text-[#9CA3AF] hover:text-[#6B7280]'
+          }`}
+        >
+          Debug
+        </button>
+        
+        {/* Toggle Results Button */}
+        <button
+          onClick={toggleResultsVisibility}
+          className={`px-3 py-2 text-sm font-medium transition-all ${
+            isDark 
+              ? 'text-[#6B7280] hover:text-[#A1A1AA] hover:bg-[#3F3F46]' 
+              : 'text-[#9CA3AF] hover:text-[#6B7280] hover:bg-[#E5E7EB]'
+          }`}
+          title={isResultsVisible ? 'Hide results' : 'Show results'}
+        >
+          {isResultsVisible ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+        </button>
       </div>
 
-      {/* Content Area */}
-      <div className="flex-1 overflow-hidden flex flex-col">
-        {/* Top Panel - Code Editor (60%) */}
-        <div className="h-3/5 min-h-0">
-          <CodeEditor
-            code={code}
-            onCodeChange={setCode}
-            errors={errors}
+      {/* Results Content */}
+      <div className="flex-1 overflow-hidden">
+        {activeTab === 'compilation' ? (
+          <CompilerOutput
+            compilationResult={compilationResult}
+            isLoading={isCompiling}
             className="h-full"
           />
-        </div>
+        ) : activeTab === 'security' ? (
+          <RiskReport
+            securityAnalysis={securityAnalysis}
+            className="h-full"
+          />
+        ) : (
+          <DebugPanel
+            debugData={debugData}
+            isLoading={isDebugging}
+            validationResult={validationResult}
+            className="h-full"
+          />
+        )}
+      </div>
+    </div>
+  );
 
-        {/* Bottom Panel - Results (40%) */}
-        <div className="h-2/5 min-h-0 flex flex-col">
-          {/* Tabs */}
-          <div className={`shrink-0 ${isDark ? 'bg-[#2D2E30] border-[#3F3F46]' : 'bg-[#F9FAFB] border-[#D1D5DB]'} border-b flex`}>
-            <button
-              onClick={() => setActiveTab('compilation')}
-              className={`flex-1 px-4 py-2 text-sm font-semibold transition-all ${
-                activeTab === 'compilation'
-                  ? isDark ? 'text-[#C7D2FE] border-b-2 border-[#C7D2FE] bg-[#312E81]/30' : 'text-[#3730A3] border-b-2 border-[#3730A3] bg-[#E0E7FF]/30'
-                  : isDark ? 'text-[#6B7280] hover:text-[#A1A1AA]' : 'text-[#9CA3AF] hover:text-[#6B7280]'
-              }`}
-            >
-              Compilation
-            </button>
-            <button
-              onClick={() => setActiveTab('security')}
-              className={`flex-1 px-4 py-2 text-sm font-semibold transition-all ${
-                activeTab === 'security'
-                  ? isDark ? 'text-[#C7D2FE] border-b-2 border-[#C7D2FE] bg-[#312E81]/30' : 'text-[#3730A3] border-b-2 border-[#3730A3] bg-[#E0E7FF]/30'
-                  : isDark ? 'text-[#6B7280] hover:text-[#A1A1AA]' : 'text-[#9CA3AF] hover:text-[#6B7280]'
-              }`}
-            >
-              Security
-            </button>
-            <button
-              onClick={() => setActiveTab('debug')}
-              className={`flex-1 px-4 py-2 text-sm font-semibold transition-all ${
-                activeTab === 'debug'
-                  ? isDark ? 'text-[#C7D2FE] border-b-2 border-[#C7D2FE] bg-[#312E81]/30' : 'text-[#3730A3] border-b-2 border-[#3730A3] bg-[#E0E7FF]/30'
-                  : isDark ? 'text-[#6B7280] hover:text-[#A1A1AA]' : 'text-[#9CA3AF] hover:text-[#6B7280]'
-              }`}
-            >
-              Debug
-            </button>
-          </div>
+  const EditorPanel = (
+    <CodeEditor
+      code={code}
+      onCodeChange={setCode}
+      errors={errors}
+      className="h-full"
+      onValidate={handleValidate}
+      onCompile={handleCompile}
+      onSecurityAnalysis={handleSecurityAnalysis}
+      onDebug={handleDebug}
+      onDownload={handleDownload}
+      onExecute={handleExecute}
+      isCompiling={isCompiling}
+      isAnalyzingSecurity={isAnalyzingSecurity}
+      isDebugging={isDebugging}
+      isValidating={isValidating}
+      hasCompiledPolicy={!!compiledPolicy}
+    />
+  );
 
-          {/* Results Content */}
-          <div className="flex-1 overflow-hidden">
-            {activeTab === 'compilation' ? (
-              <CompilerOutput
-                compilationResult={compilationResult}
-                isLoading={isCompiling}
-                className="h-full"
-              />
-            ) : activeTab === 'security' ? (
-              <RiskReport
-                securityAnalysis={securityAnalysis}
-                className="h-full"
-              />
-            ) : (
-              <DebugPanel
-                debugData={debugData}
-                isLoading={isDebugging}
-                validationResult={validationResult}
-                className="h-full"
-              />
-            )}
-          </div>
+  return (
+    <div className="h-full flex flex-col">
+      {/* Toggle Results Button in Header (when results are hidden) */}
+      {!isResultsVisible && (
+        <div className={`shrink-0 ${isDark ? 'bg-[#2D2E30] border-[#3F3F46]' : 'bg-[#F9FAFB] border-[#D1D5DB]'} border-b px-4 py-2 flex justify-end`}>
+          <button
+            onClick={toggleResultsVisibility}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-all ${
+              isDark 
+                ? 'text-[#6B7280] hover:text-[#A1A1AA] hover:bg-[#3F3F46]' 
+                : 'text-[#9CA3AF] hover:text-[#6B7280] hover:bg-[#E5E7EB]'
+            }`}
+            title="Show results panel"
+          >
+            <PanelRightOpen size={16} />
+            Show Results
+          </button>
         </div>
+      )}
+
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-hidden">
+        {isResultsVisible ? (
+          <ResizablePanel
+            direction="vertical"
+            initialSize={60}
+            minSize={30}
+            maxSize={90}
+            className="h-full"
+          >
+            {EditorPanel}
+            {ResultsPanel}
+          </ResizablePanel>
+        ) : (
+          EditorPanel
+        )}
       </div>
     </div>
   );
