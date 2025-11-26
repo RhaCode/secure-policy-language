@@ -1,6 +1,6 @@
 """
 backend/compiler/parser.py
-Secure Policy Language (SPL) Parser - FIXED VERSION WITH VALUE LISTS
+Secure Policy Language (SPL) Parser
 Performs syntax analysis and builds Abstract Syntax Tree (AST)
 """
 

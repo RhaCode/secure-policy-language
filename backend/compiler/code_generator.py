@@ -1,6 +1,6 @@
 """
 backend/compiler/code_generator.py
-Target Code Generation for Secure Policy Language - FIXED VERSION
+Target Code Generation for Secure Policy Language
 Generates executable policies with proper structure for execution engine
 """
 

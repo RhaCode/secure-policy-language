@@ -1,6 +1,6 @@
 """
 backend/compiler/lexer.py
-Secure Policy Language (SPL) Lexer - FIXED VERSION
+Secure Policy Language (SPL) Lexer
 Tokenizes SPL source code using PLY (Python Lex-Yacc)
 """
 

@@ -1,6 +1,6 @@
 """
 backend/compiler/semantic_analyzer.py
-Comprehensive Semantic Analysis for Secure Policy Language (SPL) - FIXED VERSION
+Comprehensive Semantic Analysis for Secure Policy Language (SPL)
 Performs semantic checks, validates policies, detects conflicts
 """
 
