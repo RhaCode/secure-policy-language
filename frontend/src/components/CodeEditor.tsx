@@ -51,7 +51,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       const textarea = e.currentTarget;
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
-      const newValue = code.substring(0, start) + '  ' + code.substring(end);
+      const spaces = ' '.repeat(2);
+      const newValue = code.substring(0, start) + spaces + code.substring(end);
       onCodeChange(newValue);
       
       setTimeout(() => {
@@ -259,9 +260,12 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
             } relative z-10 font-mono text-sm leading-6 px-4 py-1 focus:outline-none overflow-auto`}
             style={{ 
               tabSize: 2,
+              whiteSpace: 'pre',
+              wordWrap: 'off' as any,
+              overflowWrap: 'normal'
             }}
             spellCheck="false"
-            placeholder="Enter your SPL policy code here..."
+            placeholder=""
           />
         </div>
       </div>
