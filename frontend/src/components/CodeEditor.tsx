@@ -1,8 +1,15 @@
 // frontend/src/components/CodeEditor.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, type ReactNode } from 'react';
 import { Code2 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import type { CodeEditorProps } from '../types';
+
+interface Token {
+  type: 'keyword' | 'identifier' | 'string' | 'number' | 'operator' | 'delimiter' | 'comment' | 'whitespace';
+  value: string;
+  line: number;
+  column: number;
+}
 
 const CodeEditor: React.FC<CodeEditorProps> = ({ 
   code, 
@@ -23,22 +30,235 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 }) => {
   const { isDark } = useTheme();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const highlightRef = useRef<HTMLDivElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
   const [activeLineNumber, setActiveLineNumber] = useState(1);
+  const [tabSize] = useState(2);
 
-  useEffect(() => {
-    if (textareaRef.current) {
-      const handleScroll = () => {
-        if (lineNumbersRef.current && textareaRef.current) {
-          lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
+  // SPL Language tokens
+  const SPL_KEYWORDS = new Set([
+    'ROLE', 'USER', 'RESOURCE', 'ALLOW', 'DENY',
+    'ON', 'IF', 'AND', 'OR', 'NOT',
+    'ACTION', 'CAN', 'TRUE', 'FALSE'
+  ]);
+
+  const SPL_OPERATORS = new Set([
+    '==', '!=', '<=', '>=', '<', '>', '='
+  ]);
+
+  const SPL_DELIMITERS = new Set([
+    '{', '}', '(', ')', ',', ':', '.', '*'
+  ]);
+
+  // Tokenize code for syntax highlighting
+  const tokens = useMemo(() => {
+    const tokenList: Token[] = [];
+    let line = 1;
+    let column = 1;
+    let i = 0;
+
+    while (i < code.length) {
+      const char = code[i];
+      const remaining = code.substring(i);
+
+      // Handle newlines
+      if (char === '\n') {
+        tokenList.push({ type: 'whitespace', value: '\n', line, column });
+        line++;
+        column = 1;
+        i++;
+        continue;
+      }
+
+      // Handle whitespace
+      if (/\s/.test(char)) {
+        const match = remaining.match(/^(\s+)/);
+        if (match) {
+          tokenList.push({ type: 'whitespace', value: match[1], line, column });
+          column += match[1].length;
+          i += match[1].length;
+          continue;
         }
-      };
-      
-      const textarea = textareaRef.current;
-      textarea.addEventListener('scroll', handleScroll);
-      
-      return () => textarea.removeEventListener('scroll', handleScroll);
+      }
+
+      // Handle comments (single-line //)
+      if (remaining.startsWith('//')) {
+        const match = remaining.match(/^(\/\/.*?)(?=\n|$)/);
+        if (match) {
+          tokenList.push({ type: 'comment', value: match[1], line, column });
+          column += match[1].length;
+          i += match[1].length;
+          continue;
+        }
+      }
+
+      // Handle comments (multi-line /* */)
+      if (remaining.startsWith('/*')) {
+        const endIndex = remaining.indexOf('*/');
+        if (endIndex !== -1) {
+          const comment = remaining.substring(0, endIndex + 2);
+          const newlines = comment.split('\n').length - 1;
+          tokenList.push({ type: 'comment', value: comment, line, column });
+          i += comment.length;
+          column = comment.split('\n').length > 1 
+            ? comment.split('\n').pop()!.length + 1 
+            : column + comment.length;
+          line += newlines;
+          continue;
+        }
+      }
+
+      // Handle strings (double quotes)
+      if (char === '"') {
+        const match = remaining.match(/^"([^"\\]|\\.)*"/);
+        if (match) {
+          tokenList.push({ type: 'string', value: match[0], line, column });
+          column += match[0].length;
+          i += match[0].length;
+          continue;
+        }
+      }
+
+      // Handle strings (single quotes)
+      if (char === "'") {
+        const match = remaining.match(/^'([^'\\]|\\.)*'/);
+        if (match) {
+          tokenList.push({ type: 'string', value: match[0], line, column });
+          column += match[0].length;
+          i += match[0].length;
+          continue;
+        }
+      }
+
+      // Handle numbers
+      if (/\d/.test(char)) {
+        const match = remaining.match(/^\d+(\.\d+)?/);
+        if (match) {
+          tokenList.push({ type: 'number', value: match[0], line, column });
+          column += match[0].length;
+          i += match[0].length;
+          continue;
+        }
+      }
+
+      // Handle two-character operators
+      if (i + 1 < code.length) {
+        const twoChar = code.substring(i, i + 2);
+        if (SPL_OPERATORS.has(twoChar)) {
+          tokenList.push({ type: 'operator', value: twoChar, line, column });
+          column += 2;
+          i += 2;
+          continue;
+        }
+      }
+
+      // Handle delimiters
+      if (SPL_DELIMITERS.has(char)) {
+        tokenList.push({ type: 'delimiter', value: char, line, column });
+        column++;
+        i++;
+        continue;
+      }
+
+      // Handle identifiers and keywords
+      if (/[a-zA-Z_]/.test(char)) {
+        const match = remaining.match(/^[a-zA-Z_][a-zA-Z0-9_]*/);
+        if (match) {
+          const value = match[0];
+          const type = SPL_KEYWORDS.has(value) ? 'keyword' : 'identifier';
+          tokenList.push({ type, value, line, column });
+          column += value.length;
+          i += value.length;
+          continue;
+        }
+      }
+
+      // Single character operators
+      if (SPL_OPERATORS.has(char)) {
+        tokenList.push({ type: 'operator', value: char, line, column });
+        column++;
+        i++;
+        continue;
+      }
+
+      // Unknown character, skip
+      i++;
+      column++;
     }
+
+    return tokenList;
+  }, [code]);
+
+  // Render highlighted code preserving exact spacing
+  const renderHighlightedCode = () => {
+    let currentLine = 1;
+    let result: ReactNode[] = [];
+    let lineContent: ReactNode[] = [];
+    
+    tokens.forEach((token, idx) => {
+      if (token.line > currentLine) {
+        // Finish current line
+        result.push(
+          <div key={`line-${currentLine}`} style={{ height: '24px' }}>
+            {lineContent}
+          </div>
+        );
+        // Add any missing empty lines
+        for (let i = currentLine + 1; i < token.line; i++) {
+          result.push(<div key={`line-${i}`} style={{ height: '24px' }}>{'\n'}</div>);
+        }
+        currentLine = token.line;
+        lineContent = [];
+      }
+      
+      if (token.type === 'whitespace' && token.value === '\n') {
+        // Don't add newline to content, it's handled by line break
+      } else {
+        lineContent.push(
+          <span
+            key={`${currentLine}-${idx}`}
+            className={`${getTokenColor(token.type)} ${token.type === 'comment' ? 'italic' : ''}`}
+          >
+            {token.value}
+          </span>
+        );
+      }
+    });
+    
+    // Add final line
+    if (lineContent.length > 0 || currentLine <= lines.length) {
+      result.push(
+        <div key={`line-${currentLine}`} style={{ height: '24px' }}>
+          {lineContent}
+        </div>
+      );
+    }
+    
+    // Add any remaining empty lines
+    for (let i = currentLine + 1; i <= lines.length; i++) {
+      result.push(<div key={`line-${i}`} style={{ height: '24px' }}>{'\n'}</div>);
+    }
+    
+    return result;
+  };
+
+  // Sync scroll between textarea, highlight, and line numbers
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const handleScroll = () => {
+      if (highlightRef.current && textareaRef.current) {
+        highlightRef.current.scrollTop = textareaRef.current.scrollTop;
+        highlightRef.current.scrollLeft = textareaRef.current.scrollLeft;
+      }
+      if (lineNumbersRef.current && textareaRef.current) {
+        lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
+      }
+    };
+
+    textarea.addEventListener('scroll', handleScroll);
+    return () => textarea.removeEventListener('scroll', handleScroll);
   }, []);
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -51,12 +271,12 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       const textarea = e.currentTarget;
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
-      const spaces = ' '.repeat(2);
+      const spaces = ' '.repeat(tabSize);
       const newValue = code.substring(0, start) + spaces + code.substring(end);
       onCodeChange(newValue);
-      
+
       setTimeout(() => {
-        textarea.selectionStart = textarea.selectionEnd = start + 2;
+        textarea.selectionStart = textarea.selectionEnd = start + tabSize;
       }, 0);
     }
   };
@@ -96,6 +316,32 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       return lineErrors.some(error => error.type === 'ERROR') ? 'ERROR' : 'WARNING';
     }
     return '';
+  };
+
+  const getTokenColor = (tokenType: string): string => {
+    if (isDark) {
+      switch (tokenType) {
+        case 'keyword': return 'text-[#569CD6]'; // Blue
+        case 'identifier': return 'text-[#D4D4D4]'; // Light gray
+        case 'string': return 'text-[#CE9178]'; // Orange
+        case 'number': return 'text-[#B5CEA8]'; // Green
+        case 'operator': return 'text-[#D4D4D4]'; // Light gray
+        case 'delimiter': return 'text-[#D4D4D4]'; // Light gray
+        case 'comment': return 'text-[#6A9955]'; // Green
+        default: return 'text-[#D4D4D4]';
+      }
+    } else {
+      switch (tokenType) {
+        case 'keyword': return 'text-[#0000FF]'; // Blue
+        case 'identifier': return 'text-[#000000]'; // Black
+        case 'string': return 'text-[#A31515]'; // Red
+        case 'number': return 'text-[#098658]'; // Green
+        case 'operator': return 'text-[#000000]'; // Black
+        case 'delimiter': return 'text-[#000000]'; // Black
+        case 'comment': return 'text-[#008000]'; // Green
+        default: return 'text-[#000000]';
+      }
+    }
   };
 
   const lines = code.split('\n');
@@ -198,7 +444,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       </div>
 
       {/* Editor Container */}
-      <div className="flex-1 overflow-hidden flex">
+      <div className="flex-1 overflow-hidden flex relative">
         {/* Line Numbers */}
         <div
           ref={lineNumbersRef}
@@ -235,15 +481,21 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 
         {/* Code Input */}
         <div className="flex-1 relative overflow-hidden">
-          {/* Highlighted Lines Background */}
-          <div className="absolute inset-0 pointer-events-none font-mono text-sm leading-6 overflow-hidden">
-            {lines.map((_, i) => (
-              <div
-                key={i}
-                className={`px-4 py-1 ${getLineClass(i + 1)}`}
-                style={{ height: '24px' }}
-              />
-            ))}
+          {/* Syntax Highlight Layer */}
+          <div
+            ref={highlightRef}
+            className={`absolute inset-0 pointer-events-none font-mono text-sm leading-6 overflow-auto ${
+              isDark ? 'bg-[#242426]' : 'bg-white'
+            }`}
+            style={{ 
+              tabSize: 2,
+              whiteSpace: 'pre',
+              wordWrap: 'off' as any,
+              overflowWrap: 'normal',
+              padding: '4px 16px' // Match textarea padding: py-1 px-4
+            }}
+          >
+            {renderHighlightedCode()}
           </div>
 
           {/* Textarea */}
@@ -255,14 +507,17 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
             onSelect={handleCursorChange}
             onClick={handleCursorChange}
             onKeyUp={handleCursorChange}
-            className={`w-full h-full resize-none ${
-              isDark ? 'bg-[#242426] text-[#F3F4F6]' : 'bg-white text-[#111827]'
-            } relative z-10 font-mono text-sm leading-6 px-4 py-1 focus:outline-none overflow-auto`}
+            className={`absolute inset-0 w-full h-full resize-none ${
+              isDark ? 'bg-transparent text-[#F3F4F6]' : 'bg-transparent text-[#111827]'
+            } font-mono text-sm leading-6 px-4 py-1 focus:outline-none overflow-auto relative z-10`}
             style={{ 
-              tabSize: 2,
+              tabSize: tabSize,
               whiteSpace: 'pre',
               wordWrap: 'off' as any,
-              overflowWrap: 'normal'
+              overflowWrap: 'normal',
+              color: 'transparent',
+              caretColor: isDark ? '#F3F4F6' : '#111827',
+              resize: 'none'
             }}
             spellCheck="false"
             placeholder=""
