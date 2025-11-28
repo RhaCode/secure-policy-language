@@ -1,143 +1,113 @@
 """
 backend/app.py
-Flask Application with Compiler, Execution Engine, and CRUD Management - UPDATED
+Flask Application - SPL Compiler & Execution Engine
+SOURCE CODE AS SINGLE SOURCE OF TRUTH
+No manual CRUD operations - all data comes from compiled SPL code
 """
 
 from flask import Flask, jsonify
 from flask_cors import CORS
+import os
+
+# Import API blueprints
 from api.routes import api
 from api.execution_routes import execution_api
-from api.crud_routes import crud_api
+# REMOVED: crud_routes - No longer needed
 
-app = Flask(__name__)
-
-# Enable CORS for frontend
-CORS(app, resources={
-    r"/api/*": {
-        "origins": ["http://localhost:5173", "http://localhost:3000"],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type"]
-    }
-})
-
-# Register blueprints with proper prefixes
-app.register_blueprint(api, url_prefix='/api')
-app.register_blueprint(execution_api)  # Already has /api/execution prefix in blueprint
-app.register_blueprint(crud_api)  # Already has /api/crud prefix in blueprint
-
-@app.route('/')
-def index():
-    """Root endpoint with comprehensive API documentation"""
-    return jsonify({
-        "name": "Secure Policy Language (SPL) Compiler & Execution Engine",
-        "version": "1.0.0",
-        "description": "Complete policy management system with compilation, execution, and CRUD operations",
-        "endpoints": {
-            "compiler": {
-                "health": "/api/health",
-                "compile": "/api/compile",
-                "tokenize": "/api/tokenize",
-                "parse": "/api/parse",
-                "validate": "/api/validate",
-                "analyze": "/api/analyze",
-                "debug_tokens": "/api/debug-tokens"
-            },
-            "execution": {
-                "policy": {
-                    "check_access": "/api/execution/check-access",
-                    "activate_policy": "/api/execution/activate-policy",
-                    "get_policies": "/api/execution/policies",
-                    "policy_history": "/api/execution/policies/<name>/history",
-                    "user_permissions": "/api/execution/user-permissions/<username>"
-                },
-                "users": {
-                    "list_create": "/api/execution/users",
-                    "get_update_delete": "/api/execution/users/<username>"
-                },
-                "resources": {
-                    "list_create": "/api/execution/resources",
-                    "get_update_delete": "/api/execution/resources/<name>"
-                },
-                "audit": {
-                    "logs": "/api/execution/audit-logs",
-                    "statistics": "/api/execution/statistics"
-                },
-                "health": "/api/execution/health"
-            },
-            "crud": {
-                "users": {
-                    "list": "/api/crud/users",
-                    "create": "/api/crud/users",
-                    "get": "/api/crud/users/<username>",
-                    "update": "/api/crud/users/<username>",
-                    "delete": "/api/crud/users/<username>"
-                },
-                "resources": {
-                    "list": "/api/crud/resources",
-                    "create": "/api/crud/resources",
-                    "get": "/api/crud/resources/<name>",
-                    "update": "/api/crud/resources/<name>",
-                    "delete": "/api/crud/resources/<name>"
-                },
-                "policies": {
-                    "list": "/api/crud/policies",
-                    "get": "/api/crud/policies/<int:policy_id>",
-                    "history": "/api/crud/policies/history/<name>",
-                    "activate": "/api/crud/policies/<int:policy_id>/activate",
-                    "delete": "/api/crud/policies/<int:policy_id>"
-                },
-                "statistics": "/api/crud/statistics",
-                "health": "/api/crud/health"
-            }
+def create_app():
+    """Application factory"""
+    app = Flask(__name__)
+    
+    # Enable CORS for all routes
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": ["http://localhost:3000", "http://localhost:5173"],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"]
         }
     })
+    
+    # Configuration
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+    app.config['JSON_SORT_KEYS'] = False
+    
+    # Register blueprints
+    app.register_blueprint(api, url_prefix='/api')
+    app.register_blueprint(execution_api)  # Already has /api/execution prefix
+    # REMOVED: app.register_blueprint(crud_api)
+    
+    # Root route
+    @app.route('/')
+    def index():
+        return jsonify({
+            "name": "Secure Policy Language (SPL) Compiler & Execution Engine",
+            "version": "2.0",
+            "description": "Source code as single source of truth - no manual CRUD operations",
+            "endpoints": {
+                "compiler": {
+                    "tokenize": "POST /api/tokenize",
+                    "parse": "POST /api/parse",
+                    "compile": "POST /api/compile",
+                    "validate": "POST /api/validate",
+                    "analyze": "POST /api/analyze",
+                    "health": "GET /api/health"
+                },
+                "execution": {
+                    "check_access": "POST /api/execution/check-access",
+                    "user_permissions": "GET /api/execution/user-permissions/<username>",
+                    "users": "GET /api/execution/users (READ ONLY)",
+                    "user_detail": "GET /api/execution/users/<username> (READ ONLY)",
+                    "resources": "GET /api/execution/resources (READ ONLY)",
+                    "resource_detail": "GET /api/execution/resources/<name> (READ ONLY)",
+                    "policies": "GET /api/execution/policies (READ ONLY)",
+                    "policy_detail": "GET /api/execution/policies/<id> (READ ONLY)",
+                    "policy_history": "GET /api/execution/policies/<name>/history (READ ONLY)",
+                    "audit_logs": "GET /api/execution/audit-logs",
+                    "statistics": "GET /api/execution/statistics",
+                    "health": "GET /api/execution/health"
+                }
+            },
+            "notes": [
+                "All users, resources, and policies are defined in SPL source code",
+                "Compiling new policy clears database and repopulates from source",
+                "No manual CRUD operations available",
+                "Read-only endpoints provided for frontend UI"
+            ]
+        })
+    
+    # Global error handlers
+    @app.errorhandler(404)
+    def not_found(error):
+        return jsonify({
+            "error": "Not Found",
+            "message": "The requested resource was not found",
+            "status": 404
+        }), 404
+    
+    @app.errorhandler(500)
+    def internal_error(error):
+        return jsonify({
+            "error": "Internal Server Error",
+            "message": "An unexpected error occurred",
+            "status": 500
+        }), 500
+    
+    return app
 
-@app.route('/health')
-def health():
-    """Global health check endpoint"""
-    return jsonify({
-        "status": "healthy", 
-        "service": "SPL Compiler & Execution Engine",
-        "components": {
-            "compiler": "operational",
-            "execution_engine": "operational",
-            "crud_operations": "operational",
-            "database": "operational"
-        }
-    })
-
-@app.errorhandler(404)
-def not_found(e):
-    """Handle 404 errors"""
-    return jsonify({
-        "error": "Endpoint not found",
-        "message": "The requested endpoint does not exist. Check /api/ for available endpoints."
-    }), 404
-
-@app.errorhandler(500)
-def internal_error(e):
-    """Handle 500 errors"""
-    return jsonify({
-        "error": "Internal server error",
-        "message": str(e)
-    }), 500
 
 if __name__ == '__main__':
-    print("=" * 70)
-    print("SPL COMPILER & EXECUTION ENGINE")
-    print("=" * 70)
-    print("Starting server on http://localhost:5000")
-    print("\n📋 Available API Groups:")
-    print("  ✓ Compiler API:   http://localhost:5000/api/*")
-    print("  ✓ Execution API:  http://localhost:5000/api/execution/*")
-    print("  ✓ CRUD API:       http://localhost:5000/api/crud/*")
-    print("\n🔧 Key Features:")
-    print("  • Policy compilation & validation")
-    print("  • Runtime access control")
-    print("  • User & resource management (CRUD)")
-    print("  • Policy versioning & activation")
-    print("  • Audit logging & statistics")
-    print("\n📚 Documentation: http://localhost:5000/")
-    print("=" * 70)
+    app = create_app()
     
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    print("\n" + "=" * 60)
+    print("AuthScript COMPILER & EXECUTION ENGINE")
+    print("=" * 60)
+    print("\n✓ Server starting...")
+    print("✓ Compiler API: http://localhost:5000/api/")
+    print("✓ Execution API: http://localhost:5000/api/execution/")
+    print("\nPress CTRL+C to stop\n")
+    
+    app.run(
+        host='0.0.0.0',
+        port=5000,
+        debug=True
+    )

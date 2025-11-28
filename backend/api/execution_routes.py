@@ -1,6 +1,7 @@
 """
 backend/api/execution_routes.py
-API Routes for Policy Execution and Management - FULLY FIXED VERSION
+READ-ONLY API Routes for Policy Execution and Data Retrieval
+No CRUD operations - data comes from compiled SPL source code only
 """
 
 from flask import Blueprint, request, jsonify
@@ -21,7 +22,6 @@ def get_db():
         try:
             from database.db_manager import DatabaseManager
             _db = DatabaseManager()
-            _db.initialize_sample_data()
         except Exception as e:
             print(f"Error initializing database: {e}")
             return None
@@ -49,24 +49,23 @@ def get_policy_engine():
     return _current_engine
 
 
-def set_policy_engine(compiled_policy: dict):
-    """Set new policy engine"""
-    global _current_engine
-    try:
-        from execution.policy_engine import PolicyEngine
-        _current_engine = PolicyEngine(compiled_policy)
-        print("✓ Policy engine activated")
-        return True
-    except Exception as e:
-        print(f"✗ Error setting policy engine: {e}")
-        return False
-
-
 # ============ POLICY EXECUTION ============
 
 @execution_api.route('/check-access', methods=['POST'])
 def check_access():
-    """Check if user has access to perform action on resource"""
+    """
+    Check if user has access to perform action on resource
+    
+    Request body:
+    {
+        "username": "Alice",
+        "action": "read",
+        "resource": "DB_Finance",
+        "context": {
+            "ip_address": "192.168.1.1"
+        }
+    }
+    """
     try:
         data = request.get_json()
         
@@ -113,63 +112,11 @@ def check_access():
         }), 500
 
 
-@execution_api.route('/activate-policy', methods=['POST'])
-def activate_policy():
-    """Activate a compiled policy"""
-    try:
-        data = request.get_json()
-        
-        name = data.get('name', 'auto_compiled_policy')
-        source_code = data.get('source_code', '')
-        compiled_json = data.get('compiled_json')
-        created_by = data.get('created_by', 'system')
-        
-        if not compiled_json:
-            return jsonify({
-                'error': 'Missing compiled_json'
-            }), 400
-        
-        # Save to database
-        db = get_db()
-        policy_id = None
-        if db:
-            try:
-                policy_id = db.save_compiled_policy(
-                    name=name,
-                    source_code=source_code,
-                    compiled_json=json.dumps(compiled_json) if isinstance(compiled_json, dict) else compiled_json,
-                    created_by=created_by
-                )
-                print(f"✓ Policy saved to database (ID: {policy_id})")
-            except Exception as e:
-                print(f"✗ Failed to save policy: {e}")
-                return jsonify({
-                    'error': f'Failed to save policy: {str(e)}'
-                }), 500
-        
-        # Activate in engine
-        success = set_policy_engine(compiled_json)
-        
-        if not success:
-            return jsonify({
-                'error': 'Failed to activate policy engine'
-            }), 500
-        
-        return jsonify({
-            'success': True,
-            'policy_id': policy_id,
-            'message': f'Policy "{name}" activated successfully'
-        })
-    
-    except Exception as e:
-        return jsonify({
-            'error': str(e)
-        }), 500
-
-
 @execution_api.route('/user-permissions/<username>', methods=['GET'])
 def get_user_permissions(username):
-    """Get all permissions for a user"""
+    """
+    Get all permissions for a specific user
+    """
     try:
         engine = get_policy_engine()
         if not engine:
@@ -187,11 +134,14 @@ def get_user_permissions(username):
         }), 500
 
 
-# ============ USER MANAGEMENT ============
+# ============ READ-ONLY DATA ENDPOINTS FOR FRONTEND ============
 
-@execution_api.route('/users', methods=['GET', 'POST'])
-def manage_users():
-    """Get all users or create new user"""
+@execution_api.route('/users', methods=['GET'])
+def get_users():
+    """
+    Get all users defined in the compiled policy
+    READ ONLY - users are defined in SPL source code
+    """
     try:
         db = get_db()
         if not db:
@@ -199,33 +149,13 @@ def manage_users():
                 'error': 'Database not available'
             }), 500
         
-        if request.method == 'GET':
-            users = db.get_all_users()
-            return jsonify({
-                'success': True,
-                'users': users
-            })
+        users = db.get_all_users()
         
-        else:  # POST
-            data = request.get_json()
-            
-            username = data.get('username')
-            role = data.get('role')
-            email = data.get('email')
-            department = data.get('department')
-            
-            if not all([username, role]):
-                return jsonify({
-                    'error': 'Missing required fields: username, role'
-                }), 400
-            
-            user_id = db.create_user(username, role, email, department)
-            
-            return jsonify({
-                'success': True,
-                'user_id': user_id,
-                'message': f'User "{username}" created successfully'
-            }), 201
+        return jsonify({
+            'success': True,
+            'users': users,
+            'count': len(users)
+        })
     
     except Exception as e:
         return jsonify({
@@ -233,9 +163,12 @@ def manage_users():
         }), 500
 
 
-@execution_api.route('/users/<username>', methods=['GET', 'PUT', 'DELETE'])
-def manage_user(username):
-    """Get, update, or delete specific user"""
+@execution_api.route('/users/<username>', methods=['GET'])
+def get_user(username):
+    """
+    Get specific user information
+    READ ONLY
+    """
     try:
         db = get_db()
         if not db:
@@ -243,44 +176,149 @@ def manage_user(username):
                 'error': 'Database not available'
             }), 500
         
-        if request.method == 'GET':
-            user = db.get_user(username)
-            if not user:
+        user = db.get_user(username)
+        if not user:
+            return jsonify({
+                'error': f'User "{username}" not found'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'user': user
+        })
+    
+    except Exception as e:
+        return jsonify({
+            'error': str(e)
+        }), 500
+
+
+@execution_api.route('/resources', methods=['GET'])
+def get_resources():
+    """
+    Get all resources defined in the compiled policy
+    READ ONLY - resources are defined in SPL source code
+    """
+    try:
+        db = get_db()
+        if not db:
+            return jsonify({
+                'error': 'Database not available'
+            }), 500
+        
+        resources = db.get_all_resources()
+        
+        return jsonify({
+            'success': True,
+            'resources': resources,
+            'count': len(resources)
+        })
+    
+    except Exception as e:
+        return jsonify({
+            'error': str(e)
+        }), 500
+
+
+@execution_api.route('/resources/<name>', methods=['GET'])
+def get_resource(name):
+    """
+    Get specific resource information
+    READ ONLY
+    """
+    try:
+        db = get_db()
+        if not db:
+            return jsonify({
+                'error': 'Database not available'
+            }), 500
+        
+        resource = db.get_resource(name)
+        if not resource:
+            return jsonify({
+                'error': f'Resource "{name}" not found'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'resource': resource
+        })
+    
+    except Exception as e:
+        return jsonify({
+            'error': str(e)
+        }), 500
+
+
+@execution_api.route('/policies', methods=['GET'])
+def get_policies():
+    """
+    Get active policy information
+    READ ONLY - policy is defined in SPL source code
+    """
+    try:
+        db = get_db()
+        if not db:
+            return jsonify({
+                'error': 'Database not available'
+            }), 500
+        
+        policy = db.get_active_policy()
+        
+        if policy:
+            # Return as array with single active policy
+            return jsonify([{
+                'id': policy['id'],
+                'name': policy['name'],
+                'version': policy['version'],
+                'created_at': policy['created_at'],
+                'active': True,
+                'created_by': policy.get('created_by', 'system')
+            }])
+        else:
+            # Return empty array if no active policy
+            return jsonify([])
+    
+    except Exception as e:
+        return jsonify({
+            'error': str(e)
+        }), 500
+
+
+@execution_api.route('/policies/<int:policy_id>', methods=['GET'])
+def get_policy_details(policy_id):
+    """
+    Get detailed information about a specific policy version
+    READ ONLY
+    """
+    try:
+        db = get_db()
+        if not db:
+            return jsonify({
+                'error': 'Database not available'
+            }), 500
+        
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM compiled_policies WHERE id = ?', (policy_id,))
+            policy = cursor.fetchone()
+            
+            if not policy:
                 return jsonify({
-                    'error': f'User "{username}" not found'
+                    'error': f'Policy with ID {policy_id} not found'
                 }), 404
             
+            policy_dict = dict(policy)
+            # Parse compiled_json
+            try:
+                policy_dict['compiled_json'] = json.loads(policy_dict['compiled_json'])
+            except:
+                pass
+            
             return jsonify({
                 'success': True,
-                'user': user
+                'policy': policy_dict
             })
-        
-        elif request.method == 'PUT':
-            data = request.get_json()
-            success = db.update_user(username, **data)
-            
-            if success:
-                return jsonify({
-                    'success': True,
-                    'message': f'User "{username}" updated successfully'
-                })
-            else:
-                return jsonify({
-                    'error': f'Failed to update user "{username}"'
-                }), 500
-        
-        else:  # DELETE
-            success = db.delete_user(username)
-            
-            if success:
-                return jsonify({
-                    'success': True,
-                    'message': f'User "{username}" deleted successfully'
-                })
-            else:
-                return jsonify({
-                    'error': f'Failed to delete user "{username}"'
-                }), 500
     
     except Exception as e:
         return jsonify({
@@ -288,11 +326,12 @@ def manage_user(username):
         }), 500
 
 
-# ============ RESOURCE MANAGEMENT ============
-
-@execution_api.route('/resources', methods=['GET', 'POST'])
-def manage_resources():
-    """Get all resources or create new resource"""
+@execution_api.route('/policies/<name>/history', methods=['GET'])
+def get_policy_history(name):
+    """
+    Get version history of a policy
+    READ ONLY
+    """
     try:
         db = get_db()
         if not db:
@@ -300,34 +339,14 @@ def manage_resources():
                 'error': 'Database not available'
             }), 500
         
-        if request.method == 'GET':
-            resources = db.get_all_resources()
-            return jsonify({
-                'success': True,
-                'resources': resources
-            })
+        history = db.get_policy_history(name)
         
-        else:  # POST
-            data = request.get_json()
-            
-            name = data.get('name')
-            resource_type = data.get('type')
-            path = data.get('path')
-            description = data.get('description')
-            owner = data.get('owner')
-            
-            if not all([name, resource_type, path]):
-                return jsonify({
-                    'error': 'Missing required fields: name, type, path'
-                }), 400
-            
-            resource_id = db.create_resource(name, resource_type, path, description, owner)
-            
-            return jsonify({
-                'success': True,
-                'resource_id': resource_id,
-                'message': f'Resource "{name}" created successfully'
-            }), 201
+        return jsonify({
+            'success': True,
+            'policy_name': name,
+            'versions': history,
+            'total_versions': len(history)
+        })
     
     except Exception as e:
         return jsonify({
@@ -335,9 +354,12 @@ def manage_resources():
         }), 500
 
 
-@execution_api.route('/resources/<name>', methods=['GET', 'PUT', 'DELETE'])
-def manage_resource(name):
-    """Get, update, or delete specific resource"""
+@execution_api.route('/policies/source', methods=['GET'])
+def get_active_policy_source():
+    """
+    Get source code for the currently active policy
+    READ ONLY
+    """
     try:
         db = get_db()
         if not db:
@@ -345,48 +367,27 @@ def manage_resource(name):
                 'error': 'Database not available'
             }), 500
         
-        if request.method == 'GET':
-            resource = db.get_resource(name)
-            if not resource:
-                return jsonify({
-                    'error': f'Resource "{name}" not found'
-                }), 404
-            
+        policy = db.get_active_policy()
+        
+        if not policy:
             return jsonify({
-                'success': True,
-                'resource': resource
-            })
+                'error': 'No active policy found',
+                'success': False
+            }), 404
         
-        elif request.method == 'PUT':
-            data = request.get_json()
-            success = db.update_resource(name, **data)
-            
-            if success:
-                return jsonify({
-                    'success': True,
-                    'message': f'Resource "{name}" updated successfully'
-                })
-            else:
-                return jsonify({
-                    'error': f'Failed to update resource "{name}"'
-                }), 500
-        
-        else:  # DELETE
-            success = db.delete_resource(name)
-            
-            if success:
-                return jsonify({
-                    'success': True,
-                    'message': f'Resource "{name}" deleted successfully'
-                })
-            else:
-                return jsonify({
-                    'error': f'Failed to delete resource "{name}"'
-                }), 500
+        return jsonify({
+            'success': True,
+            'source_code': policy['source_code'],
+            'policy_name': policy['name'],
+            'policy_version': policy['version'],
+            'created_at': policy['created_at'],
+            'created_by': policy.get('created_by', 'system')
+        })
     
     except Exception as e:
         return jsonify({
-            'error': str(e)
+            'error': str(e),
+            'success': False
         }), 500
 
 
@@ -394,7 +395,9 @@ def manage_resource(name):
 
 @execution_api.route('/audit-logs', methods=['GET'])
 def get_audit_logs():
-    """Get audit logs with optional filtering"""
+    """
+    Get audit logs with optional filtering
+    """
     try:
         db = get_db()
         if not db:
@@ -422,7 +425,9 @@ def get_audit_logs():
 
 @execution_api.route('/statistics', methods=['GET'])
 def get_statistics():
-    """Get access statistics"""
+    """
+    Get access statistics and system information
+    """
     try:
         db = get_db()
         if not db:
@@ -430,67 +435,39 @@ def get_statistics():
                 'error': 'Database not available'
             }), 500
         
+        # Get database statistics
         stats = db.get_access_statistics()
         
-        return jsonify({
-            'success': True,
-            'statistics': stats
-        })
-    
-    except Exception as e:
-        return jsonify({
-            'error': str(e)
-        }), 500
-
-
-# ============ POLICY MANAGEMENT (FIXED) ============
-
-@execution_api.route('/policies', methods=['GET'])
-def get_policies():
-    """Get active policy information - FIXED to return proper format"""
-    try:
-        db = get_db()
-        if not db:
-            return jsonify({
-                'error': 'Database not available'
-            }), 500
+        # Get counts
+        users = db.get_all_users()
+        resources = db.get_all_resources()
         
-        policy = db.get_active_policy()
-        
-        if policy:
-            # Return as array with single active policy
-            return jsonify([{
-                'name': policy['name'],
-                'version': policy['version'],
-                'created_at': policy['created_at'],
-                'active': True
-            }])
-        else:
-            # Return empty array if no active policy
-            return jsonify([])
-    
-    except Exception as e:
-        return jsonify({
-            'error': str(e)
-        }), 500
-
-
-@execution_api.route('/policies/<name>/history', methods=['GET'])
-def get_policy_history(name):
-    """Get version history of a policy"""
-    try:
-        db = get_db()
-        if not db:
-            return jsonify({
-                'error': 'Database not available'
-            }), 500
-        
-        history = db.get_policy_history(name)
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT COUNT(*) as total FROM compiled_policies')
+            total_policies = cursor.fetchone()['total']
         
         return jsonify({
             'success': True,
-            'policy_name': name,
-            'versions': history
+            'statistics': {
+                'users': {
+                    'total': len(users),
+                    'active': sum(1 for u in users if u.get('active', 1))
+                },
+                'resources': {
+                    'total': len(resources)
+                },
+                'policies': {
+                    'total': total_policies
+                },
+                'access_logs': {
+                    'total_requests': stats.get('total_requests', 0),
+                    'allowed': stats.get('allowed', 0),
+                    'denied': stats.get('denied', 0),
+                    'top_users': stats.get('top_users', []),
+                    'top_resources': stats.get('top_resources', [])
+                }
+            }
         })
     
     except Exception as e:
@@ -502,7 +479,7 @@ def get_policy_history(name):
 # ============ HEALTH CHECK ============
 
 @execution_api.route('/health', methods=['GET'])
-def crud_health_check():
+def execution_health_check():
     """Health check for execution engine"""
     db = get_db()
     engine = get_policy_engine()

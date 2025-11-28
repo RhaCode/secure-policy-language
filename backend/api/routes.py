@@ -1,14 +1,15 @@
 """
 backend/api/routes.py
-API Routes for SPL Compiler - WITH AUTOMATIC POLICY STORAGE
-All endpoints for the Secure Policy Language compiler
+API Routes for SPL Compiler - SOURCE CODE AS SINGLE SOURCE OF TRUTH
+Users, Resources, and Policies are all defined in SPL code
+Database is cleared and repopulated on each compilation
 """
 
 from flask import Blueprint, request, jsonify
 from compiler.semantic_analyzer import SemanticAnalyzer
 from compiler.lexer import SPLLexer
 from compiler.parser import SPLParser
-from compiler.ast_nodes import ASTPrinter
+from compiler.ast_nodes import ASTPrinter, ASTVisitor
 import json
 
 # Import database and execution engine
@@ -30,16 +31,71 @@ parser = SPLParser()
 # Initialize database if available
 if DB_AVAILABLE:
     db = DatabaseManager()
-    db.initialize_sample_data()
     _current_engine = None
 else:
     db = None
     _current_engine = None
 
 
-def save_and_activate_policy(source_code: str, compiled_json: dict) -> bool:
+class SPLDataExtractor(ASTVisitor):
     """
-    Save compiled policy to database and activate it
+    Extract users, resources, and policies from AST
+    for database population
+    """
+    def __init__(self):
+        self.users = []
+        self.resources = []
+        self.roles = {}
+    
+    def visit_RoleNode(self, node):
+        """Extract role information"""
+        self.roles[node.name] = node.properties
+    
+    def visit_UserNode(self, node):
+        """Extract user information"""
+        user_data = {
+            'username': node.name,
+            'role': node.properties.get('role', 'Guest'),
+            'email': node.properties.get('email'),
+            'department': node.properties.get('department')
+        }
+        self.users.append(user_data)
+    
+    def visit_ResourceNode(self, node):
+        """Extract resource information"""
+        resource_data = {
+            'name': node.name,
+            'type': node.properties.get('type', 'other'),
+            'path': node.properties.get('path', '/'),
+            'description': node.properties.get('description'),
+            'owner': node.properties.get('owner')
+        }
+        self.resources.append(resource_data)
+    
+    def visit_PolicyNode(self, node):
+        # Policies are handled by code generator
+        pass
+    
+    def visit_BinaryOpNode(self, node):
+        # No extraction needed for expressions
+        pass
+    
+    def visit_UnaryOpNode(self, node):
+        # No extraction needed for expressions
+        pass
+    
+    def visit_AttributeNode(self, node):
+        # No extraction needed for expressions
+        pass
+    
+    def visit_LiteralNode(self, node):
+        # No extraction needed for literals
+        pass
+
+
+def clear_and_populate_database(ast, source_code, compiled_json):
+    """
+    Clear database and repopulate with data from AST
     Returns True if successful, False otherwise
     """
     global _current_engine
@@ -48,7 +104,51 @@ def save_and_activate_policy(source_code: str, compiled_json: dict) -> bool:
         return False
     
     try:
-        # Save to database
+        # Extract data from AST
+        extractor = SPLDataExtractor()
+        extractor.visit(ast)
+        
+        # Clear existing data
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Clear tables (keep schema)
+            cursor.execute('DELETE FROM audit_logs')
+            cursor.execute('DELETE FROM compiled_policies')
+            cursor.execute('DELETE FROM users')
+            cursor.execute('DELETE FROM resources')
+            conn.commit()
+        
+        print(f"✓ Database cleared")
+        
+        # Populate users
+        for user in extractor.users:
+            try:
+                db.create_user(
+                    username=user['username'],
+                    role=user['role'],
+                    email=user['email'],
+                    department=user['department']
+                )
+                print(f"  ✓ Created user: {user['username']} ({user['role']})")
+            except Exception as e:
+                print(f"  ✗ Failed to create user {user['username']}: {e}")
+        
+        # Populate resources
+        for resource in extractor.resources:
+            try:
+                db.create_resource(
+                    name=resource['name'],
+                    type=resource['type'],
+                    path=resource['path'],
+                    description=resource['description'],
+                    owner=resource['owner']
+                )
+                print(f"  ✓ Created resource: {resource['name']}")
+            except Exception as e:
+                print(f"  ✗ Failed to create resource {resource['name']}: {e}")
+        
+        # Save compiled policy
         policy_id = db.save_compiled_policy(
             name='auto_compiled_policy',
             source_code=source_code,
@@ -59,11 +159,15 @@ def save_and_activate_policy(source_code: str, compiled_json: dict) -> bool:
         # Activate in engine
         _current_engine = PolicyEngine(compiled_json)
         
-        print(f"✓ Policy saved (ID: {policy_id}) and activated successfully")
+        print(f"✓ Policy saved (ID: {policy_id}) and activated")
+        print(f"✓ Database populated with {len(extractor.users)} users and {len(extractor.resources)} resources")
+        
         return True
+        
     except Exception as e:
-        print(f"✗ Failed to save/activate policy: {e}")
+        print(f"✗ Failed to populate database: {e}")
         return False
+
 
 @api.route('/tokenize', methods=['POST'])
 def tokenize():
@@ -111,6 +215,7 @@ def tokenize():
             "error": str(e)
         }), 500
 
+
 @api.route('/parse', methods=['POST'])
 def parse():
     """
@@ -157,11 +262,12 @@ def parse():
             "error": str(e)
         }), 500
 
+
 @api.route('/compile', methods=['POST'])
 def compile_spl():
     """
     Full compilation: Tokenize + Parse + Semantic Analysis + Code Generation
-    AUTOMATICALLY saves and activates policy on successful compilation
+    AUTOMATICALLY clears database and repopulates with data from source code
     """
     try:
         data = request.get_json()
@@ -172,7 +278,10 @@ def compile_spl():
                 "error": "Missing 'code' field in request body"
             }), 400
         
-        print("Data received for compilation:", data)
+        print("=" * 60)
+        print("COMPILING SPL CODE")
+        print("=" * 60)
+        
         source_code = data['code']
         should_analyze = data.get('analyze', False)
         generate_code = data.get('generate_code', False)
@@ -195,20 +304,14 @@ def compile_spl():
         parser.build()
         ast = parser.parse(source_code)
         
-        # Even if parsing fails, return the errors to frontend
+        # Handle parsing errors
         if ast is None:
-            # Convert parser errors to frontend format
             frontend_errors = []
             for error_msg in parser.errors:
-                # Parse error message to extract line number and message
-                # Format: "Syntax error at line X: Unexpected token 'Y' (type: Z)"
                 if "line" in error_msg:
                     try:
-                        # Extract line number
                         line_part = error_msg.split("line")[1].split(":")[0].strip()
                         line_number = int(line_part)
-                        
-                        # Extract message
                         message = error_msg.split(": ", 1)[1] if ": " in error_msg else error_msg
                         
                         frontend_errors.append({
@@ -217,7 +320,6 @@ def compile_spl():
                             "type": "ERROR"
                         })
                     except (IndexError, ValueError):
-                        # Fallback if parsing fails
                         frontend_errors.append({
                             "line": 1,
                             "message": error_msg,
@@ -246,7 +348,7 @@ def compile_spl():
                         "errors": parser.errors
                     }
                 }
-            }), 200  # Return 200 with error details instead of 400
+            }), 200
         
         # Prepare response for successful parsing
         response = {
@@ -299,17 +401,17 @@ def compile_spl():
                 except json.JSONDecodeError:
                     print("Warning: Generated code is not valid JSON")
         
-        # Step 5: AUTOMATIC POLICY STORAGE & ACTIVATION
+        # Step 5: CLEAR DATABASE AND REPOPULATE FROM SOURCE CODE
         if compiled_json and DB_AVAILABLE:
-            policy_saved = save_and_activate_policy(source_code, compiled_json)
-            response["policy_activated"] = policy_saved
+            database_updated = clear_and_populate_database(ast, source_code, compiled_json)
+            response["database_updated"] = database_updated
             
-            if policy_saved:
-                response["message"] = "Policy compiled, saved, and activated successfully"
+            if database_updated:
+                response["message"] = "Policy compiled, database cleared and repopulated from source code"
             else:
-                response["message"] = "Policy compiled but could not be saved to database"
+                response["message"] = "Policy compiled but could not update database"
         else:
-            response["policy_activated"] = False
+            response["database_updated"] = False
             if not DB_AVAILABLE:
                 response["message"] = "Policy compiled successfully (database not available)"
             elif not compiled_json:
@@ -318,10 +420,12 @@ def compile_spl():
         return jsonify(response)
     
     except Exception as e:
+        print(f"✗ Compilation error: {e}")
         return jsonify({
             "success": False,
             "error": str(e)
         }), 500
+
 
 @api.route('/validate', methods=['POST'])
 def validate():
@@ -361,16 +465,12 @@ def validate():
             "error": str(e)
         }), 500
 
+
 @api.route('/analyze', methods=['POST'])
 def analyze_semantics():
     """
     Perform semantic analysis on SPL code
     Detects conflicts, security risks, and validates references
-    
-    Request body:
-    {
-        "code": "ROLE Admin { can: * }"
-    }
     """
     try:
         data = request.get_json()
@@ -406,33 +506,6 @@ def analyze_semantics():
         }), 500
 
 
-@api.route('/debug-tokens', methods=['POST'])
-def debug_tokens():
-    """Debug endpoint to see tokenization results"""
-    try:
-        data = request.get_json()
-        source_code = data['code']
-        
-        lexer.build()
-        tokens = lexer.tokenize(source_code)
-        
-        return jsonify({
-            "tokens": [
-                {
-                    "type": token[0],
-                    "value": str(token[1]),
-                    "line": token[2]
-                }
-                for token in tokens
-            ],
-            "total_tokens": len(tokens)
-        })
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-
 @api.route('/health', methods=['GET'])
 def health_check():
     """API health check"""
@@ -442,6 +515,7 @@ def health_check():
         "database": "available" if DB_AVAILABLE else "unavailable"
     })
 
+
 # Error handlers for the API Blueprint
 @api.errorhandler(404)
 def api_not_found(error):
@@ -450,6 +524,7 @@ def api_not_found(error):
         "error": "API endpoint not found",
         "message": "Please check the API documentation"
     }), 404
+
 
 @api.errorhandler(500)
 def api_internal_error(error):

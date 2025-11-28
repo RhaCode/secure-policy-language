@@ -1,11 +1,10 @@
 // frontend/src/App.tsx
 import { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Code2, Moon, Sun, Zap, FileCode, Settings, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Code2, Moon, Sun, Zap, FileCode, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTheme } from './context/ThemeContext';
 import CompilerPage from './pages/CompilerPage';
 import ExecutionPage from './pages/ExecutionPage';
-import ManagementPage from './pages/ManagementPage';
 
 function App() {
   const { isDark, toggleTheme } = useTheme();
@@ -63,13 +62,6 @@ function App() {
       icon: Zap,
       color: isDark ? 'text-[#10B981]' : 'text-[#065F46]',
       bgColor: isDark ? 'bg-[#3F3F46]' : 'bg-[#D1FAE5]'
-    },
-    {
-      path: '/management',
-      label: 'Management',
-      icon: Settings,
-      color: isDark ? 'text-[#F59E0B]' : 'text-[#92400E]',
-      bgColor: isDark ? 'bg-[#3F3F46]' : 'bg-[#FEF3C7]'
     }
   ];
 
@@ -217,7 +209,6 @@ function App() {
           <Routes>
             <Route path="/" element={<CompilerPage />} />
             <Route path="/execution" element={<ExecutionPage />} />
-            <Route path="/management" element={<ManagementPage />} />
           </Routes>
         </main>
       </div>

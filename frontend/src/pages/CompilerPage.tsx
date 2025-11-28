@@ -1,5 +1,5 @@
 // frontend/src/pages/CompilerPage.tsx
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronUp, ChevronDown, PanelRightOpen } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
@@ -26,6 +26,23 @@ export default function CompilerPage() {
   const [isDebugging, setIsDebugging] = useState(false);
   const [activeTab, setActiveTab] = useState<'compilation' | 'security' | 'debug'>('compilation');
   const [isResultsVisible, setIsResultsVisible] = useState(true);
+
+  // Load active policy on component mount
+  useEffect(() => {
+    const loadActivePolicy = async () => {
+      try {
+        const response = await apiService.getActivePolicySourceCode();
+        if (response.success && response.source_code) {
+          setCode(response.source_code);
+          console.log(`✓ Loaded active policy: ${response.policy_name} v${response.policy_version}`);
+        }
+      } catch (error) {
+        console.log('No active policy found - starting with empty editor');
+      }
+    };
+
+    loadActivePolicy();
+  }, []);
 
   // Extract compiled policy for execution
   const compiledPolicy = useMemo(() => {
@@ -62,7 +79,7 @@ export default function CompilerPage() {
         allErrors.push({ 
           line: error.line || 1, 
           message: error.message, 
-            type: error.type 
+          type: error.type 
         });
       });
       

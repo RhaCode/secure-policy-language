@@ -71,9 +71,9 @@ export default function ExecutionPage() {
     try {
       setUsersLoading(true);
       setUsersError('');
-      const usersResult = await apiService.getUsersCRUD();
+      const usersResult = await apiService.getUsers();
       if (usersResult.success) {
-        setUsers(usersResult.data || []);
+        setUsers(usersResult.users || []);
       } else {
         setUsersError('Failed to load users');
       }
@@ -89,9 +89,9 @@ export default function ExecutionPage() {
     try {
       setResourcesLoading(true);
       setResourcesError('');
-      const resourcesResult = await apiService.getResourcesCRUD();
+      const resourcesResult = await apiService.getResources();
       if (resourcesResult.success) {
-        setResources(resourcesResult.data || []);
+        setResources(resourcesResult.resources || []);
       } else {
         setResourcesError('Failed to load resources');
       }
@@ -133,9 +133,9 @@ export default function ExecutionPage() {
 
   const loadStatistics = async () => {
     try {
-      const result = await apiService.getStatisticsCRUD();
+      const result = await apiService.getStatistics();
       if (result.success) {
-        setStatistics(result.data.access_logs || { total_requests: 0, allowed: 0, denied: 0 });
+        setStatistics(result.statistics.access_logs || { total_requests: 0, allowed: 0, denied: 0 });
       }
     } catch (error) {
       console.error('Failed to load statistics');
