@@ -1,0 +1,174 @@
+// ========================================================================
+// COMPREHENSIVE SPL POLICY - FULL LANGUAGE CAPABILITY TEST
+// ========================================================================
+// This policy tests all language features:
+// - Role definitions with various permission levels
+// - User assignments to roles
+// - Resource definitions
+// - ALLOW/DENY policies with complex conditions
+// - Time-based access control
+// - Attribute-based conditions
+// - Policy conflicts (for testing semantic analyzer)
+// - Security patterns (wildcard permissions, privilege escalation)
+// ========================================================================
+
+// ======================== ROLE DEFINITIONS ========================
+
+ROLE Admin {
+    can: *
+}
+
+ROLE Developer {
+    can: read, write, execute
+}
+
+ROLE Guest {
+    can: read
+}
+
+ROLE Manager {
+    can: read, write, approve
+}
+
+// ======================== USER DEFINITIONS ========================
+
+USER Alice {
+    role: Admin
+}
+
+USER Bob {
+    role: Developer
+}
+
+USER Charlie {
+    role: Guest
+}
+
+// ======================== RESOURCE DEFINITIONS ========================
+
+RESOURCE DB_Finance {
+    path: "/data/financial"
+}
+
+RESOURCE DB_HR {
+    path: "/data/hr"
+}
+
+RESOURCE API_Users {
+    path: "/api/users"
+}
+
+RESOURCE Reports {
+    path: "/reports"
+}
+
+// ======================== POLICY RULES ========================
+
+// Policy 1: Admin has full access to everything (no conditions)
+ALLOW action: * ON RESOURCE: DB_Finance
+IF (user.role == "Admin")
+
+ALLOW action: * ON RESOURCE: DB_HR
+IF (user.role == "Admin")
+
+ALLOW action: * ON RESOURCE: API_Users
+IF (user.role == "Admin")
+
+// Policy 2: Developers can read/write financial data during business hours
+ALLOW action: read, write ON RESOURCE: DB_Finance
+IF (user.role == "Developer" AND time.hour >= 9 AND time.hour <= 17)
+
+// Policy 3: Deny Developer delete access to financial data (security policy)
+DENY action: delete ON RESOURCE: DB_Finance
+IF (user.role == "Developer")
+
+// Policy 4: Guest can only read reports (least privilege)
+ALLOW action: read ON RESOURCE: Reports
+IF (user.role == "Guest")
+
+// Policy 5: Deny Guest access to financial data entirely
+DENY action: * ON RESOURCE: DB_Finance
+IF (user.role == "Guest")
+
+// Policy 6: HR data access - business hours only for non-admins
+ALLOW action: read ON RESOURCE: DB_HR
+IF (time.hour >= 8 AND time.hour <= 18)
+
+// Policy 7: Deny HR access outside business hours
+DENY action: * ON RESOURCE: DB_HR
+IF (time.hour < 8 OR time.hour > 18)
+
+// Policy 8: API access for Developers
+ALLOW action: read, write ON RESOURCE: API_Users
+IF (user.role == "Developer")
+
+// Policy 9: Deny API modifications on weekends
+DENY action: write, delete ON RESOURCE: API_Users
+IF (time.weekday == "Saturday" OR time.weekday == "Sunday")
+
+// Policy 10: Reports write access for Developers during business hours
+ALLOW action: write ON RESOURCE: Reports
+IF (user.role == "Developer" AND time.hour >= 9)
+
+// Policy 11: Security risk test - Guest with delete (should trigger warning)
+// Commented out for production, but tests semantic analyzer
+// ALLOW action: delete ON RESOURCE: Reports
+// IF (user.role == "Guest")
+
+// Policy 12: Conflicting policy test (should be detected by semantic analyzer)
+// This conflicts with Policy 2 - same resource, action, overlapping conditions
+DENY action: read ON RESOURCE: DB_Finance
+IF (user.role == "Developer" AND time.hour >= 9 AND time.hour <= 17)
+
+// Policy 13: Wildcard resource pattern
+ALLOW action: read ON RESOURCE: DB_
+IF (user.role == "Manager")
+
+// Policy 14: Negative condition test
+DENY action: delete ON RESOURCE: API_Users
+IF (NOT user.role == "Admin")
+
+// Policy 15: Execute permission for Developers or Managers
+ALLOW action: execute ON RESOURCE: API_Users
+IF (user.role == "Developer" OR user.role == "Manager")
+
+// ======================== TEST SCENARIOS ========================
+/*
+EXPECTED BEHAVIOR:
+
+1. Alice (Admin) - Should have access to everything at all times
+   - DB_Finance: read/write/delete/execute (ALLOW)
+   - DB_HR: read/write/delete/execute (ALLOW)
+   - API_Users: read/write/delete/execute (ALLOW)
+
+2. Bob (Developer) - Time-restricted access
+   - DB_Finance: read/write 9AM-5PM (ALLOW), delete denied always (DENY)
+   - DB_Finance: read DENIED 9AM-5PM (CONFLICT - Policy 12 vs Policy 2)
+   - DB_HR: read 8AM-6PM (ALLOW with time restriction)
+   - API_Users: read/write allowed
+   - API_Users: write/delete denied on weekends
+   - API_Users: execute allowed (policy 15)
+
+3. Charlie (Guest) - Minimal access
+   - DB_Finance: ALL denied (Policy 5)
+   - DB_HR: denied outside 8AM-6PM
+   - API_Users: denied (no matching ALLOW policy)
+   - Reports: read only (Policy 4)
+
+SEMANTIC ANALYZER SHOULD DETECT:
+- Policy conflict: Policy 2 (ALLOW read) vs Policy 12 (DENY read) on DB_Finance
+- Security risk: Wildcard permissions for Admin role
+- Undefined reference: If Manager role used but not in users table
+- Privilege escalation: If Guest given delete permissions
+
+CODE GENERATOR SHOULD PRODUCE:
+- Valid JSON with all roles, users, resources, policies
+- Executable Python code with policy evaluation functions
+- Proper condition serialization for runtime evaluation
+
+EXECUTION ENGINE SHOULD:
+- Enforce DENY overrides ALLOW
+- Evaluate time conditions at runtime
+- Handle wildcard resource patterns (DB_*)
+- Log all access attempts to audit table
+*/
