@@ -110,18 +110,23 @@ private isAfterColon(context: CompletionContext): boolean {
   const colonIndex = line.lastIndexOf(':');
   if (colonIndex === -1) return false;
   
-  // Get the text before the colon to identify the property
+  // Get the text before the colon
   const beforeColon = line.substring(0, colonIndex).trim();
   
   // We should suggest values if:
   // 1. We have a known property before the colon (like 'can', 'role', etc.)
-  // 2. We're typing after the colon (even if there's already some text)
+  // 2. The cursor is positioned after the colon
   const knownProperties = ['can', 'role', 'action', 'path', 'type', 'owner', 'department', 'clearance'];
   const isKnownProperty = knownProperties.some(prop => 
     beforeColon.endsWith(prop) || beforeColon === prop
   );
   
-  return isKnownProperty;
+  // Check if we're actually positioned after the colon in the current cursor position
+  const cursorPosInLine = context.column;
+  const colonPosInLine = line.indexOf(':');
+  const isAfterColonPos = cursorPosInLine > colonPosInLine;
+  
+  return isKnownProperty && isAfterColonPos;
 }
 
   private isInCondition(context: CompletionContext): boolean {

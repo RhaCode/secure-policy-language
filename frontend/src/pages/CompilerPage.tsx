@@ -4,12 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronUp, ChevronDown, PanelRightOpen } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { apiService } from '../services/api';
-import EnhancedCodeEditor from '../components/EnhancedCodeEditor';
+import CodeEditor from '../components/CodeEditor';
 import CompilerOutput from '../components/CompilerOutput';
 import RiskReport from '../components/RiskReport';
 import DebugPanel from '../components/DebugPanel';
 import ResizablePanel from '../components/ResizablePanel';
-import CompilerToolbar from '../components/CompilerToolbar';
 import type { CompilationResponse, SecurityAnalysisResponse, CompilationError, ParsingError, ValidateResponse } from '../types';
 
 
@@ -303,30 +302,23 @@ export default function CompilerPage() {
   );
 
   const EditorPanel = (
-    <div className="h-full flex flex-col">
-      {/* Compiler Toolbar */}
-      <CompilerToolbar
-        onValidate={handleValidate}
-        onCompile={handleCompile}
-        onSecurityAnalysis={handleSecurityAnalysis}
-        onDebug={handleDebug}
-        onDownload={handleDownload}
-        onExecute={handleExecute}
-        isCompiling={isCompiling}
-        isAnalyzingSecurity={isAnalyzingSecurity}
-        isDebugging={isDebugging}
-        isValidating={isValidating}
-        hasCompiledPolicy={!!compiledPolicy}
-      />
-      
-      {/* Enhanced Code Editor with IntelliSense */}
-      <EnhancedCodeEditor
-        code={code}
-        onCodeChange={setCode}
-        errors={errors}
-        className="flex-1"
-      />
-    </div>
+    <CodeEditor
+      code={code}
+      onCodeChange={setCode}
+      errors={errors}
+      className="h-full"
+      onValidate={handleValidate}
+      onCompile={handleCompile}
+      onSecurityAnalysis={handleSecurityAnalysis}
+      onDebug={handleDebug}
+      onDownload={handleDownload}
+      onExecute={handleExecute}
+      isCompiling={isCompiling}
+      isAnalyzingSecurity={isAnalyzingSecurity}
+      isDebugging={isDebugging}
+      isValidating={isValidating}
+      hasCompiledPolicy={!!compiledPolicy}
+    />
   );
 
   return (

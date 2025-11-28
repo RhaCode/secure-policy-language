@@ -65,16 +65,6 @@ def save_and_activate_policy(source_code: str, compiled_json: dict) -> bool:
         print(f"✗ Failed to save/activate policy: {e}")
         return False
 
-
-@api.route('/health', methods=['GET'])
-def health_check():
-    """API health check"""
-    return jsonify({
-        "status": "healthy",
-        "compiler": "ready",
-        "database": "available" if DB_AVAILABLE else "unavailable"
-    })
-
 @api.route('/tokenize', methods=['POST'])
 def tokenize():
     """
@@ -415,22 +405,6 @@ def analyze_semantics():
             "error": str(e)
         }), 500
 
-# Error handlers for the API Blueprint
-@api.errorhandler(404)
-def api_not_found(error):
-    """Handle 404 errors for API endpoints"""
-    return jsonify({
-        "error": "API endpoint not found",
-        "message": "Please check the API documentation"
-    }), 404
-
-@api.errorhandler(500)
-def api_internal_error(error):
-    """Handle 500 errors for API endpoints"""
-    return jsonify({
-        "error": "Internal server error in API",
-        "message": str(error)
-    }), 500
 
 @api.route('/debug-tokens', methods=['POST'])
 def debug_tokens():
@@ -456,3 +430,31 @@ def debug_tokens():
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+
+@api.route('/health', methods=['GET'])
+def health_check():
+    """API health check"""
+    return jsonify({
+        "status": "healthy",
+        "compiler": "ready",
+        "database": "available" if DB_AVAILABLE else "unavailable"
+    })
+
+# Error handlers for the API Blueprint
+@api.errorhandler(404)
+def api_not_found(error):
+    """Handle 404 errors for API endpoints"""
+    return jsonify({
+        "error": "API endpoint not found",
+        "message": "Please check the API documentation"
+    }), 404
+
+@api.errorhandler(500)
+def api_internal_error(error):
+    """Handle 500 errors for API endpoints"""
+    return jsonify({
+        "error": "Internal server error in API",
+        "message": str(error)
+    }), 500

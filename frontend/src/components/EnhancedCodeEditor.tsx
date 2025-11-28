@@ -581,7 +581,7 @@ const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         <div className="flex items-center gap-2">
           <Code2 size={18} className={isDark ? 'text-[#60A5FA]' : 'text-[#2563EB]'} />
           <h3 className={`font-semibold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>
-            SPL Editor with IntelliSense
+            AuthScript
           </h3>
         </div>
         
