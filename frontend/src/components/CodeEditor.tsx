@@ -15,17 +15,6 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   onCodeChange, 
   errors, 
   className = '',
-  onValidate,
-  onCompile,
-  onSecurityAnalysis,
-  onDebug,
-  onDownload,
-  onExecute,
-  isCompiling = false,
-  isAnalyzingSecurity = false,
-  isDebugging = false,
-  isValidating = false,
-  hasCompiledPolicy = false
 }) => {
   const { isDark } = useTheme();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -358,98 +347,10 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   };
 
   const lines = code.split('\n');
-  const errorCount = errors.filter(e => e.type === 'ERROR').length;
-  const warningCount = errors.filter(e => e.type === 'WARNING' || e.type === 'RISK').length;
 
   return (
     <div className={`${isDark ? 'border-[#3F3F46] bg-[#242426]' : 'border-[#D1D5DB] bg-white'} border overflow-hidden flex flex-col h-full ${className}`}>
-      {/* Editor Header */}
-      <div className={`shrink-0 ${isDark ? 'bg-[#2D2E30] border-[#3F3F46]' : 'bg-[#F9FAFB] border-[#D1D5DB]'} px-4 py-3 border-b flex justify-end items-center`}>
-        <div className="flex items-center gap-4">
-          {/* Issue Status */}
-          <div className="flex gap-4 text-sm mr-4">
-            {errorCount > 0 && (
-              <span className={`flex items-center gap-1.5 font-medium ${isDark ? 'text-[#F87171]' : 'text-[#DC2626]'}`}>
-                {errorCount} error{errorCount !== 1 ? 's' : ''}
-              </span>
-            )}
-            {warningCount > 0 && (
-              <span className={`flex items-center gap-1.5 font-medium ${isDark ? 'text-[#FBBF24]' : 'text-[#D97706]'}`}>
-                {warningCount} warning{warningCount !== 1 ? 's' : ''}
-              </span>
-            )}
-            {errors.length === 0 && code.trim() && (
-              <span className={`flex items-center gap-1.5 font-medium ${isDark ? 'text-[#10B981]' : 'text-[#059669]'}`}>
-                ✓ No issues
-              </span>
-            )}
-          </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onValidate}
-              disabled={isValidating}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs transition-all duration-200 
-                disabled:opacity-50 disabled:cursor-not-allowed active:scale-95
-                ${isDark ? 'bg-[#3F3F46] text-[#F3F4F6] hover:bg-[#52525B]' : 'bg-[#E5E7EB] text-[#111827] hover:bg-[#D1D5DB]'}`}
-            >
-              Validate
-            </button>
-
-            <button
-              onClick={onCompile}
-              disabled={isCompiling}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs transition-all duration-200 
-                disabled:opacity-50 disabled:cursor-not-allowed active:scale-95
-                ${isDark ? 'bg-[#3F3F46] text-[#F3F4F6] hover:bg-[#52525B]' : 'bg-[#E5E7EB] text-[#111827] hover:bg-[#D1D5DB]'}`}
-            >
-              {isCompiling ? 'Compiling...' : 'Compile'}
-            </button>
-
-            <button
-              onClick={onSecurityAnalysis}
-              disabled={isAnalyzingSecurity}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs transition-all duration-200 
-                disabled:opacity-50 disabled:cursor-not-allowed active:scale-95
-                ${isDark ? 'bg-[#3F3F46] text-[#F3F4F6] hover:bg-[#52525B]' : 'bg-[#F3F4F6] text-[#111827] hover:bg-[#E5E7EB]'}`}
-            >
-              {isAnalyzingSecurity ? 'Scanning...' : 'Scan'}
-            </button>
-
-            <button
-              onClick={onDebug}
-              disabled={isDebugging}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs transition-all duration-200 
-                disabled:opacity-50 disabled:cursor-not-allowed active:scale-95
-                ${isDark ? 'bg-[#3F3F46] text-[#F3F4F6] hover:bg-[#52525B]' : 'bg-[#E5E7EB] text-[#111827] hover:bg-[#D1D5DB]'}`}
-            >
-              {isDebugging ? 'Debugging...' : 'Debug'}
-            </button>
-
-            {hasCompiledPolicy && (
-              <button
-                onClick={onExecute}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs transition-all duration-200 
-                  active:scale-95 bg-[#10B981] text-white hover:bg-[#059669]`}
-              >
-                Execute
-              </button>
-            )}
-
-            {onDownload && (
-              <button
-                onClick={onDownload}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs transition-all duration-200 
-                  active:scale-95
-                  ${isDark ? 'bg-[#3F3F46] text-[#F3F4F6] hover:bg-[#52525B]' : 'bg-[#E5E7EB] text-[#111827] hover:bg-[#D1D5DB]'}`}
-              >
-                Export
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
 
       {/* Editor Container */}
       <div className="flex-1 overflow-hidden flex relative">

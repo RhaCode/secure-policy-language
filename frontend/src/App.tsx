@@ -38,15 +38,17 @@ function App() {
             <div className={`w-10 h-10 ${isDark ? 'bg-[#3F3F46]' : 'bg-[#E5E7EB]'} flex items-center justify-center rounded-lg`}>
               <Code2 size={24} className={isDark ? 'text-[#60A5FA]' : 'text-[#2563EB]'} />
             </div>
-            <div className="hidden sm:block">
               <h1 className={`text-lg font-bold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>
-                SPL Compiler
+                AuthScript
               </h1>
+            <div className="hidden sm:block">
               <p className={`text-xs ${isDark ? 'text-[#A1A1AA]' : 'text-[#6B7280]'}`}>
-                Security Policy Language
+                Security Policy Language Compiler
               </p>
             </div>
           </div>
+
+          <div className='flex flex-row gap-2'>
 
           {/* Navigation */}
           <nav className="flex items-center gap-2">
@@ -85,6 +87,7 @@ function App() {
             {isDark ? <Sun size={18} /> : <Moon size={18} />}
             <span className="hidden sm:inline">{isDark ? 'Light' : 'Dark'}</span>
           </button>
+        </div>
         </div>
       </header>
 

@@ -1,7 +1,7 @@
 // frontend/src/pages/CompilerPage.tsx
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronUp, ChevronDown, PanelRightOpen } from 'lucide-react';
+import { ChevronUp, ChevronDown, PanelRightOpen, Play, Shield, Bug, Download, CheckCircle, Zap } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { apiService } from '../services/api';
 import CodeEditor from '../components/CodeEditor';
@@ -10,7 +10,6 @@ import RiskReport from '../components/RiskReport';
 import DebugPanel from '../components/DebugPanel';
 import ResizablePanel from '../components/ResizablePanel';
 import type { CompilationResponse, SecurityAnalysisResponse, CompilationError, ParsingError, ValidateResponse } from '../types';
-
 
 export default function CompilerPage() {
   const { isDark } = useTheme();
@@ -205,20 +204,45 @@ export default function CompilerPage() {
   }, [code, isResultsVisible]);
 
   const handleDownload = useCallback(() => {
-    if (compilationResult?.stages.code_generation?.generated_code) {
-      const blob = new Blob([compilationResult.stages.code_generation.generated_code], {
-        type: 'application/json'
-      });
+    if (compilationResult?.success && compilationResult.stages?.code_generation?.generated_code) {
+      try {
+        const blob = new Blob([compilationResult.stages.code_generation.generated_code], {
+          type: 'application/json'
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'spl-policy.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('Download failed:', error);
+        // Fallback: download the source code if generated code is not available
+        const blob = new Blob([code], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'spl-policy.spl';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } else {
+      // Download source code if no compilation result
+      const blob = new Blob([code], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'spl-policy.json';
+      a.download = 'spl-policy.spl';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     }
-  }, [compilationResult]);
+  }, [compilationResult, code]);
 
   const handleExecute = useCallback(async () => {
     if (compiledPolicy) {
@@ -328,23 +352,108 @@ export default function CompilerPage() {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Toggle Results Button in Header (when results are hidden) */}
-      {!isResultsVisible && (
-        <div className={`shrink-0 ${isDark ? 'bg-[#2D2E30] border-[#3F3F46]' : 'bg-[#F9FAFB] border-[#D1D5DB]'} border-b px-4 py-2 flex justify-end`}>
-          <button
-            onClick={toggleResultsVisibility}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs sm:text-sm font-medium transition-all ${
-              isDark 
-                ? 'text-[#6B7280] hover:text-[#A1A1AA] hover:bg-[#3F3F46]' 
-                : 'text-[#9CA3AF] hover:text-[#6B7280] hover:bg-[#E5E7EB]'
-            }`}
-            title="Show results panel"
-          >
-            <PanelRightOpen size={16} />
-            <span className="hidden sm:inline">Show Results</span>
-          </button>
+      {/* Unified Header with Results Toggle and Action Buttons */}
+      <div className={`shrink-0 ${isDark ? 'bg-[#2D2E30] border-[#3F3F46]' : 'bg-[#F9FAFB] border-[#D1D5DB]'} border-b px-4 py-3`}>
+        <div className="flex items-center justify-between">
+          {/* Results Toggle */}
+          <div className="flex items-center">
+            <button
+              onClick={toggleResultsVisibility}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                isDark 
+                  ? 'text-[#6B7280] hover:text-[#A1A1AA] hover:bg-[#3F3F46]' 
+                  : 'text-[#9CA3AF] hover:text-[#6B7280] hover:bg-[#E5E7EB]'
+              }`}
+              title={isResultsVisible ? 'Hide results panel' : 'Show results panel'}
+            >
+              <PanelRightOpen size={16} />
+              <span className="hidden sm:inline">
+                {isResultsVisible ? 'Hide Results' : 'Show Results'}
+              </span>
+            </button>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleValidate}
+              disabled={isValidating}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs transition-all duration-200 
+                disabled:opacity-50 disabled:cursor-not-allowed active:scale-95
+                ${isDark ? 'bg-[#3F3F46] text-[#F3F4F6] hover:bg-[#52525B]' : 'bg-[#E5E7EB] text-[#111827] hover:bg-[#D1D5DB]'}`}
+              title="Validate Policy"
+            >
+              <CheckCircle size={16} />
+              <span className="hidden sm:inline">Validate</span>
+            </button>
+
+            <button
+              onClick={handleCompile}
+              disabled={isCompiling}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs transition-all duration-200 
+                disabled:opacity-50 disabled:cursor-not-allowed active:scale-95
+                ${isDark ? 'bg-[#3F3F46] text-[#F3F4F6] hover:bg-[#52525B]' : 'bg-[#E5E7EB] text-[#111827] hover:bg-[#D1D5DB]'}`}
+              title="Compile Policy"
+            >
+              <Play size={16} />
+              <span className="hidden sm:inline">
+                {isCompiling ? 'Compiling...' : 'Compile'}
+              </span>
+            </button>
+
+            <button
+              onClick={handleSecurityAnalysis}
+              disabled={isAnalyzingSecurity}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs transition-all duration-200 
+                disabled:opacity-50 disabled:cursor-not-allowed active:scale-95
+                ${isDark ? 'bg-[#3F3F46] text-[#F3F4F6] hover:bg-[#52525B]' : 'bg-[#F3F4F6] text-[#111827] hover:bg-[#E5E7EB]'}`}
+              title="Security Analysis"
+            >
+              <Shield size={16} />
+              <span className="hidden sm:inline">
+                {isAnalyzingSecurity ? 'Scanning...' : 'Scan'}
+              </span>
+            </button>
+
+            <button
+              onClick={handleDebug}
+              disabled={isDebugging}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs transition-all duration-200 
+                disabled:opacity-50 disabled:cursor-not-allowed active:scale-95
+                ${isDark ? 'bg-[#3F3F46] text-[#F3F4F6] hover:bg-[#52525B]' : 'bg-[#E5E7EB] text-[#111827] hover:bg-[#D1D5DB]'}`}
+              title="Debug Policy"
+            >
+              <Bug size={16} />
+              <span className="hidden sm:inline">
+                {isDebugging ? 'Debugging...' : 'Debug'}
+              </span>
+            </button>
+
+            {compiledPolicy && (
+              <button
+                onClick={handleExecute}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs transition-all duration-200 
+                  active:scale-95 bg-[#10B981] text-white hover:bg-[#059669]`}
+                title="Execute Policy"
+              >
+                <Zap size={16} />
+                <span className="hidden sm:inline">Execute</span>
+              </button>
+            )}
+
+            <button
+              onClick={handleDownload}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs transition-all duration-200 
+                active:scale-95
+                ${isDark ? 'bg-[#3F3F46] text-[#F3F4F6] hover:bg-[#52525B]' : 'bg-[#E5E7EB] text-[#111827] hover:bg-[#D1D5DB]'}`}
+              title="Download Policy"
+            >
+              <Download size={16} />
+              <span className="hidden sm:inline">Export</span>
+            </button>
+          </div>
         </div>
-      )}
+      </div>
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-hidden">
