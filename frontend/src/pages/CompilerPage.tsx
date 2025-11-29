@@ -168,40 +168,38 @@ export default function CompilerPage() {
     }
   }, [code, isResultsVisible]);
 
-  const handleDebug = useCallback(async () => {
-    setIsDebugging(true);
-    try {
-      const [tokenResult, parseResult, semanticResult] = await Promise.all([
-        apiService.debugTokens(code),
-        apiService.parseSPL(code).catch(() => ({ success: false, ast: null, errors: [] })),
-        apiService.analyzeSemantics(code).catch(() => ({ 
-          success: false, 
-          errors: [], 
-          warnings: [], 
-          conflicts: [], 
-          statistics: {} 
-        }))
-      ]);
+const handleDebug = useCallback(async () => {
+  setIsDebugging(true);
+  try {
+    const [tokenResult, semanticResult] = await Promise.all([
+      apiService.tokenizeSPL(code),
+      apiService.analyzeSemantics(code).catch(() => ({ 
+        success: false, 
+        errors: [], 
+        warnings: [], 
+        conflicts: [], 
+        statistics: {} 
+      }))
+    ]);
 
-      setDebugData({
-        tokens: tokenResult,
-        parsing: parseResult,
-        semantic: semanticResult
-      });
-      setActiveTab('debug');
-      if (!isResultsVisible) {
-        setIsResultsVisible(true);
-      }
-    } catch (error) {
-      console.error('Debug failed:', error);
-      setDebugData({
-        error: error instanceof Error ? error.message : 'Debug failed'
-      });
-      setActiveTab('debug');
-    } finally {
-      setIsDebugging(false);
+    setDebugData({
+      tokens: tokenResult,
+      semantic: semanticResult
+    });
+    setActiveTab('debug');
+    if (!isResultsVisible) {
+      setIsResultsVisible(true);
     }
-  }, [code, isResultsVisible]);
+  } catch (error) {
+    console.error('Debug failed:', error);
+    setDebugData({
+      error: error instanceof Error ? error.message : 'Debug failed'
+    });
+    setActiveTab('debug');
+  } finally {
+    setIsDebugging(false);
+  }
+}, [code, isResultsVisible]);
 
   const handleDownload = useCallback(() => {
     if (compilationResult?.success && compilationResult.stages?.code_generation?.generated_code) {

@@ -48,13 +48,6 @@ class ApiService {
     });
   }
 
-  async debugTokens(code: string): Promise<{ tokens: any[]; total_tokens: number }> {
-    return this.fetchWithErrorHandling(`${API_BASE}/debug-tokens`, {
-      method: 'POST',
-      body: JSON.stringify({ code }),
-    });
-  }
-
   async tokenizeSPL(code: string): Promise<TokenizeResponse> {
     return this.fetchWithErrorHandling(`${API_BASE}/tokenize`, {
       method: 'POST',
