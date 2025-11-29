@@ -172,3 +172,6 @@ EXECUTION ENGINE SHOULD:
 - Handle wildcard resource patterns (DB_*)
 - Log all access attempts to audit table
 */
+
+ALLOW action: * ON RESOURCE: testData
+IF (user.role == "Admin")

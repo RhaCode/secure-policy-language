@@ -3,10 +3,11 @@ backend/compiler/semantic_analyzer.py
 Comprehensive Semantic Analysis for Secure Policy Language (SPL)
 Performs semantic checks, validates policies, detects conflicts
 
-KEY FIX: 
-- Removed duplicate visit_RoleNode definition
-- Added proper action validation for role 'can' property
-- Fixed method indentation and class structure
+KEY FIXES: 
+- Undefined role references: ERROR (blocks compilation)
+- Undefined resource references: ERROR (blocks compilation) ← NEW FIX
+- Invalid actions in roles: ERROR (blocks compilation)
+- Conflicting policies: WARNING (doesn't block, but reported)
 """
 
 from compiler.parser import (
@@ -74,10 +75,10 @@ class SemanticAnalyzer(ASTVisitor):
     - Identifies security risks and vulnerabilities
     - Checks for privilege escalation
     - Validates attribute access
-    - Checks for undefined references
+    - Checks for undefined references (ERRORS - blocks compilation)
     - Analyzes condition expressions
     - Validates role names used in conditions
-    - VALIDATES ACTIONS in role definitions
+    - Validates actions in role definitions
     """
     
     # Valid actions that can be used
@@ -156,20 +157,42 @@ class SemanticAnalyzer(ASTVisitor):
                     self.errors.append(error)
                     self.undefined_references.append(('role', role_name, user_name))
         
-        # Validate policy resource references
+        # Validate policy resource references - CRITICAL FIX
         for policy in self.policies:
             if isinstance(policy.resource, str):
                 resource_name = policy.resource
-                # Skip if it's a path pattern or wildcard
-                if not (resource_name.startswith('/') or '*' in resource_name or '.' in resource_name):
+                
+                # Determine if this is a literal resource identifier
+                is_path = resource_name.startswith('/')
+                has_wildcard = '*' in resource_name
+                has_dot = '.' in resource_name
+                
+                # If it's a plain identifier (like "DB_Finance"), it MUST be defined
+                if not (is_path or has_wildcard or has_dot):
                     if resource_name not in self.resources:
+                        # THIS IS NOW AN ERROR, NOT A WARNING
+                        error = SemanticError(
+                            f"Policy references undefined resource '{resource_name}'. "
+                            f"Define it with: RESOURCE {resource_name} {{ ... }}",
+                            policy.line_number,
+                            "ERROR"
+                        )
+                        self.errors.append(error)
+                        self.undefined_references.append(('resource', resource_name, 'policy'))
+                
+                # For paths, give helpful feedback if no resources match
+                elif is_path:
+                    matching_resources = [
+                        r for r, node in self.resources.items() 
+                        if node.properties.get('path') == resource_name
+                    ]
+                    if not matching_resources:
                         warning = SemanticError(
-                            f"Policy references undefined resource '{resource_name}'",
+                            f"Policy uses path '{resource_name}' which doesn't match any defined resource path",
                             policy.line_number,
                             "WARNING"
                         )
                         self.warnings.append(warning)
-                        self.undefined_references.append(('resource', resource_name, 'policy'))
         
         # Validate role references in conditions
         self._validate_role_references_in_conditions()
@@ -244,7 +267,6 @@ class SemanticAnalyzer(ASTVisitor):
     
     def _phase_recommendations(self):
         """Phase 5: Generate recommendations based on analysis"""
-        # This phase can add helpful suggestions to warnings
         pass
     
     def visit_ProgramNode(self, node):
@@ -272,7 +294,7 @@ class SemanticAnalyzer(ASTVisitor):
             symbol.defined_line = node.line_number
             self.symbol_table.define(symbol)
             
-            # ===== VALIDATION: Check 'can' property for valid actions =====
+            # VALIDATION: Check 'can' property for valid actions
             if 'can' in node.properties:
                 can_value = node.properties['can']
                 
