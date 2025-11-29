@@ -25,6 +25,12 @@ def serve_frontend():
     """Serve the SPA frontend (index.html)"""
     return send_from_directory(STATIC_DIR, "index.html")
 
+# Catch-all: serve frontend for ANY path that is not an API route
+    @app.route('/<path:path>')
+    def serve_frontend_files(path):
+        if path.startswith("api"):
+            return jsonify({"error": "API endpoint not found"}), 404
+    return send_from_directory(STATIC_DIR, path)
 
 # -------------------------
 # CORS CONFIG
@@ -47,8 +53,9 @@ CORS(app, resources={
 # -------------------------
 
 app.register_blueprint(api, url_prefix='/api')
-app.register_blueprint(execution_api)
-app.register_blueprint(crud_api)
+app.register_blueprint(execution_api, url_prefix='/api/execution')
+app.register_blueprint(crud_api, url_prefix='/api/crud')
+
 
 # -------------------------
 # BACKEND INFO ROUTE
