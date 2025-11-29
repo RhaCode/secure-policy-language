@@ -131,7 +131,8 @@ class ApiService {
    * READ ONLY
    */
   async getResource(name: string): Promise<{ success: boolean; resource: any }> {
-    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/resources/${name}`);
+    // URL encode the name to handle special characters
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/resources/${encodeURIComponent(name)}`);
   }
 
   /**
@@ -155,7 +156,8 @@ class ApiService {
    * READ ONLY
    */
   async getPolicyHistory(name: string): Promise<{ success: boolean; policy_name: string; versions: any[]; total_versions: number }> {
-    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/policies/${name}/history`);
+    // URL encode the name to handle special characters
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/policies/${encodeURIComponent(name)}/history`);
   }
 
   /**

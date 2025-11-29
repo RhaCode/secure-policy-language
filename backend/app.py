@@ -2,17 +2,14 @@
 backend/app.py
 Flask Application - SPL Compiler & Execution Engine
 SOURCE CODE AS SINGLE SOURCE OF TRUTH
-No manual CRUD operations - all data comes from compiled SPL code
 """
 
 from flask import Flask, jsonify
 from flask_cors import CORS
 import os
 
-# Import API blueprints
+# Import single unified API blueprint
 from api.routes import api
-from api.execution_routes import execution_api
-# REMOVED: crud_routes - No longer needed
 
 def create_app():
     """Application factory"""
@@ -31,10 +28,8 @@ def create_app():
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
     app.config['JSON_SORT_KEYS'] = False
     
-    # Register blueprints
-    app.register_blueprint(api, url_prefix='/api')
-    app.register_blueprint(execution_api)  # Already has /api/execution prefix
-    # REMOVED: app.register_blueprint(crud_api)
+    # Register single unified blueprint
+    app.register_blueprint(api)
     
     # Root route
     @app.route('/')
@@ -62,6 +57,7 @@ def create_app():
                     "policies": "GET /api/execution/policies (READ ONLY)",
                     "policy_detail": "GET /api/execution/policies/<id> (READ ONLY)",
                     "policy_history": "GET /api/execution/policies/<name>/history (READ ONLY)",
+                    "policy_source": "GET /api/execution/policies/source (READ ONLY)",
                     "audit_logs": "GET /api/execution/audit-logs",
                     "statistics": "GET /api/execution/statistics",
                     "health": "GET /api/execution/health"
@@ -99,11 +95,12 @@ if __name__ == '__main__':
     app = create_app()
     
     print("\n" + "=" * 60)
-    print("AuthScript COMPILER & EXECUTION ENGINE")
+    print("SPL COMPILER & EXECUTION ENGINE")
     print("=" * 60)
     print("\n✓ Server starting...")
-    print("✓ Compiler API: http://localhost:5000/api/")
-    print("✓ Execution API: http://localhost:5000/api/execution/")
+    print("✓ Unified API: http://localhost:5000/api/")
+    print("✓ Compiler endpoints: /api/compile, /api/parse, /api/tokenize")
+    print("✓ Execution endpoints: /api/execution/*")
     print("\nPress CTRL+C to stop\n")
     
     app.run(
