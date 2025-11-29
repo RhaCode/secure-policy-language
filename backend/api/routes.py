@@ -268,6 +268,8 @@ def compile_spl():
     """
     Full compilation: Tokenize + Parse + Semantic Analysis + Code Generation
     AUTOMATICALLY clears database and repopulates with data from source code
+    
+    CRITICAL: Compilation is BLOCKED if semantic errors are detected
     """
     try:
         data = request.get_json()
@@ -283,7 +285,7 @@ def compile_spl():
         print("=" * 60)
         
         source_code = data['code']
-        should_analyze = data.get('analyze', False)
+        should_analyze = data.get('analyze', True)  # Default to True for safety
         generate_code = data.get('generate_code', False)
         target_format = data.get('format', 'json')
         
@@ -367,22 +369,48 @@ def compile_spl():
             }
         }
         
-        # Step 3: Semantic Analysis (if requested)
-        if should_analyze:
-            analyzer = SemanticAnalyzer()
-            semantic_results = analyzer.analyze(ast)
-            
-            response["stages"]["semantic_analysis"] = {
-                "success": semantic_results["success"],
-                "errors": semantic_results["errors"],
-                "warnings": semantic_results["warnings"],
-                "conflicts": semantic_results["conflicts"],
-                "statistics": semantic_results["statistics"]
-            }
+        # Step 3: Semantic Analysis (ALWAYS run for safety)
+        print("\n--- Running Semantic Analysis ---")
+        analyzer = SemanticAnalyzer()
+        semantic_results = analyzer.analyze(ast)
         
-        # Step 4: Code Generation (if requested)
+        response["stages"]["semantic_analysis"] = {
+            "success": semantic_results["success"],
+            "errors": semantic_results["errors"],
+            "warnings": semantic_results["warnings"],
+            "conflicts": semantic_results["conflicts"],
+            "statistics": semantic_results["statistics"]
+        }
+        
+        # CRITICAL CHECK: Block compilation if semantic errors exist
+        if not semantic_results["success"]:
+            print(f"✗ Semantic analysis failed with {len(semantic_results['errors'])} error(s)")
+            for error in semantic_results["errors"]:
+                print(f"  - Line {error['line']}: {error['message']}")
+            
+            # Convert semantic errors to frontend format
+            frontend_errors = []
+            for error in semantic_results["errors"]:
+                frontend_errors.append({
+                    "line": error["line"],
+                    "message": error["message"],
+                    "type": error["type"]
+                })
+            
+            response["success"] = False
+            response["stage"] = "semantic_analysis"
+            response["errors"] = frontend_errors
+            response["message"] = "Compilation blocked due to semantic errors"
+            
+            print("\n✗ COMPILATION BLOCKED - Fix semantic errors before proceeding\n")
+            return jsonify(response), 200
+        
+        print("✓ Semantic analysis passed")
+        
+        # Step 4: Code Generation (only if semantic analysis passed)
         compiled_json = None
         if generate_code:
+            print("\n--- Generating Code ---")
             from compiler.code_generator import CodeGenerator
             generator = CodeGenerator(target_format)
             generated_code = generator.generate(ast)
@@ -398,18 +426,23 @@ def compile_spl():
             if target_format == 'json' and generated_code:
                 try:
                     compiled_json = json.loads(generated_code)
+                    print("✓ Code generation successful")
                 except json.JSONDecodeError:
-                    print("Warning: Generated code is not valid JSON")
+                    print("✗ Warning: Generated code is not valid JSON")
         
         # Step 5: CLEAR DATABASE AND REPOPULATE FROM SOURCE CODE
+        # Only proceed if semantic analysis passed
         if compiled_json and DB_AVAILABLE:
+            print("\n--- Updating Database ---")
             database_updated = clear_and_populate_database(ast, source_code, compiled_json)
             response["database_updated"] = database_updated
             
             if database_updated:
-                response["message"] = "Policy compiled, database cleared and repopulated from source code"
+                response["message"] = "Policy compiled successfully, database cleared and repopulated"
+                print("\n✓ COMPILATION SUCCESSFUL - Policy active and database updated\n")
             else:
                 response["message"] = "Policy compiled but could not update database"
+                print("\n⚠ COMPILATION SUCCESSFUL - But database update failed\n")
         else:
             response["database_updated"] = False
             if not DB_AVAILABLE:
@@ -421,6 +454,8 @@ def compile_spl():
     
     except Exception as e:
         print(f"✗ Compilation error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             "success": False,
             "error": str(e)
@@ -431,7 +466,7 @@ def compile_spl():
 def validate():
     """
     Validate SPL code without full compilation
-    Returns syntax errors if any
+    Returns BOTH syntax AND semantic errors
     """
     try:
         data = request.get_json()
@@ -443,20 +478,37 @@ def validate():
         
         source_code = data['code']
         
-        # Parse to check for errors
+        # Step 1: Parse to check for syntax errors
         parser.build()
         ast = parser.parse(source_code)
         
         if ast is None:
             return jsonify({
                 "valid": False,
+                "stage": "parsing",
                 "errors": parser.errors
             })
         
+        # Step 2: Run semantic analysis
+        analyzer = SemanticAnalyzer()
+        semantic_results = analyzer.analyze(ast)
+        
+        if not semantic_results["success"]:
+            return jsonify({
+                "valid": False,
+                "stage": "semantic_analysis",
+                "errors": semantic_results["errors"],
+                "warnings": semantic_results["warnings"],
+                "conflicts": semantic_results["conflicts"]
+            })
+        
+        # If we have warnings but no errors, still mark as valid
         return jsonify({
             "valid": True,
-            "message": "Code is syntactically valid",
-            "errors": []
+            "message": "Code is valid",
+            "errors": [],
+            "warnings": semantic_results["warnings"],
+            "conflicts": semantic_results["conflicts"]
         })
     
     except Exception as e:
@@ -464,7 +516,6 @@ def validate():
             "valid": False,
             "error": str(e)
         }), 500
-
 
 @api.route('/analyze', methods=['POST'])
 def analyze_semantics():

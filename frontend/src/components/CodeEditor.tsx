@@ -350,7 +350,21 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 
   return (
     <div className={`${isDark ? 'border-[#3F3F46] bg-[#242426]' : 'border-[#D1D5DB] bg-white'} border overflow-hidden flex flex-col h-full ${className}`}>
-
+{errors.some(e => e.type === 'BLOCK') && (
+  <div className={`mb-3 p-3 rounded-lg border flex items-center gap-3 ${
+    isDark 
+      ? 'bg-red-900/30 border-red-800 text-red-300' 
+      : 'bg-red-50 border-red-200 text-red-700'
+  }`}>
+    <span className="text-xl">⛔</span>
+    <div className="flex-1">
+      <div className="font-semibold text-sm">Compilation Blocked</div>
+      <div className="text-xs mt-1">
+        Fix the errors below before compiling
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Editor Container */}
       <div className="flex-1 overflow-hidden flex relative">

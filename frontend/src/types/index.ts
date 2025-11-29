@@ -6,11 +6,6 @@ export interface Token {
   line: number;
 }
 
-export interface CompilationError {
-  type: string;
-  message: string;
-  line?: number;
-}
 
 export interface CompilationWarning {
   type: string;
@@ -69,18 +64,6 @@ export interface CodeGenerationStage {
   supported_formats: string[];
 }
 
-export interface CompilationResponse {
-  success: boolean;
-  stage?: string;
-  error?: string;
-  stages: {
-    tokenization: TokenizationStage;
-    parsing: ParsingStage;
-    semantic_analysis?: SemanticAnalysisStage;
-    code_generation?: CodeGenerationStage;
-  };
-}
-
 export interface SemanticAnalysisResponse {
   success: boolean;
   errors: CompilationError[];
@@ -124,13 +107,6 @@ export interface ParseResponse {
   success: boolean;
   ast: string;
   errors: string[];
-  error?: string;
-}
-
-export interface ValidateResponse {
-  valid: boolean;
-  errors: string[];
-  message?: string;
   error?: string;
 }
 
@@ -179,4 +155,44 @@ export interface CodeEditorProps {
   isDebugging?: boolean;
   isValidating?: boolean;
   hasCompiledPolicy?: boolean;
+}
+
+
+
+
+
+
+
+
+
+
+export interface CompilationResponse {
+  success: boolean;
+  stage?: string; // 'parsing' | 'semantic_analysis' | etc.
+  error?: string;
+  message?: string; // NEW: Message from backend about blocking
+  errors?: CompilationError[]; // NEW: Direct errors array for blocked compilation
+  database_updated?: boolean; // NEW: Track if database was updated
+  stages: {
+    tokenization: TokenizationStage;
+    parsing: ParsingStage;
+    semantic_analysis?: SemanticAnalysisStage;
+    code_generation?: CodeGenerationStage;
+  };
+}
+
+export interface ValidateResponse {
+  valid: boolean;
+  stage?: string; // NEW: Which stage failed
+  errors: string[] | CompilationError[]; // Support both formats
+  warnings?: CompilationWarning[]; // NEW: Warnings from validation
+  conflicts?: PolicyConflict[]; // NEW: Conflicts from validation
+  message?: string;
+  error?: string;
+}
+
+export interface CompilationError {
+  type: string;
+  message: string;
+  line?: number;
 }
