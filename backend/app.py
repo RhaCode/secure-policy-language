@@ -6,9 +6,9 @@ SPL Compiler & Execution Engine - Azure Compatible Version
 import os
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
-from api.routes import api
-from api.execution_routes import execution_api
-from api.crud_routes import crud_api
+from backend.api.routes import api
+from backend.api.execution_routes import execution_api
+from backend.api.crud_routes import crud_api
 
 
 app = Flask(__name__, static_folder="static", static_url_path="")
