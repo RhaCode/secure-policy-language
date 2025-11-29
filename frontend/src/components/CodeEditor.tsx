@@ -5,7 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import type { CodeEditorProps } from '../types';
 
 interface Token {
-  type: 'keyword' | 'identifier' | 'string' | 'number' | 'operator' | 'delimiter' | 'comment' | 'whitespace';
+  type: 'keyword' | 'identifier' | 'string' | 'number' | 'operator' | 'delimiter' | 'comment' | 'whitespace' | 'action';
   value: string;
   line: number;
   column: number;
@@ -40,6 +40,11 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     'ROLE', 'USER', 'RESOURCE', 'ALLOW', 'DENY',
     'ON', 'IF', 'AND', 'OR', 'NOT',
     'ACTION', 'CAN', 'TRUE', 'FALSE'
+  ]);
+
+  const SPL_ACTIONS = new Set([
+    'read', 'READ', 'write', 'WRITE', 'delete', 'DELETE',
+    'execute', 'EXECUTE', 'create', 'CREATE', 'update', 'UPDATE', 'list', 'LIST'
   ]);
 
   const SPL_OPERATORS = new Set([
@@ -165,7 +170,14 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
         const match = remaining.match(/^[a-zA-Z_][a-zA-Z0-9_]*/);
         if (match) {
           const value = match[0];
-          const type = SPL_KEYWORDS.has(value) ? 'keyword' : 'identifier';
+          let type: 'keyword' | 'identifier' | 'action' = 'identifier';
+          
+          if (SPL_KEYWORDS.has(value)) {
+            type = 'keyword';
+          } else if (SPL_ACTIONS.has(value)) {
+            type = 'action';
+          }
+          
           tokenList.push({ type, value, line, column });
           column += value.length;
           i += value.length;
@@ -322,6 +334,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     if (isDark) {
       switch (tokenType) {
         case 'keyword': return 'text-[#569CD6]'; // Blue
+        case 'action': return 'text-[#4EC9B0]'; // Teal/Cyan - action keywords
         case 'identifier': return 'text-[#D4D4D4]'; // Light gray
         case 'string': return 'text-[#CE9178]'; // Orange
         case 'number': return 'text-[#B5CEA8]'; // Green
@@ -333,6 +346,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     } else {
       switch (tokenType) {
         case 'keyword': return 'text-[#0000FF]'; // Blue
+        case 'action': return 'text-[#008B8B]'; // Dark cyan - action keywords
         case 'identifier': return 'text-[#000000]'; // Black
         case 'string': return 'text-[#A31515]'; // Red
         case 'number': return 'text-[#098658]'; // Green
@@ -492,7 +506,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
               whiteSpace: 'pre',
               wordWrap: 'off' as any,
               overflowWrap: 'normal',
-              padding: '4px 16px' // Match textarea padding: py-1 px-4
+              padding: '4px 16px'
             }}
           >
             {renderHighlightedCode()}

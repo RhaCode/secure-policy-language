@@ -1,7 +1,13 @@
 """
-backend/compiler/parser.py
+backend/compiler/parser.py (FIXED)
 Secure Policy Language (SPL) Parser
 Performs syntax analysis and builds Abstract Syntax Tree (AST)
+
+KEY FIX: 
+- Action tokens (READ, WRITE, DELETE, etc.) are now REQUIRED in 'can' properties
+- Generic IDENTIFIERs are NOT allowed in 'can' values
+- Misspelled actions like 'execu' will now cause PARSE ERRORS, not semantic errors
+- Only valid action tokens or '*' are accepted in the 'can' property
 """
 
 import ply.yacc as yacc
@@ -77,15 +83,47 @@ class SPLParser:
     
     def p_property(self, p):
         '''property : IDENTIFIER COLON value_or_list
-                   | CAN COLON value_or_list'''
-        # Handle 'can' keyword specially
-        key = 'can' if p[1] == 'can' else p[1]
-        p[0] = {key: p[3]}
+                   | CAN COLON action_value_or_list'''
+        # Handle 'can' keyword specially - must use action values only
+        if p[1] == 'can':
+            key = 'can'
+            p[0] = {key: p[3]}
+        else:
+            key = p[1]
+            p[0] = {key: p[3]}
     
     def p_value_or_list(self, p):
         '''value_or_list : value_list
                         | value'''
         p[0] = p[1]
+    
+    def p_action_value_or_list(self, p):
+        '''action_value_or_list : action_value_list
+                               | action_value'''
+        p[0] = p[1]
+    
+    def p_action_value_list(self, p):
+        '''action_value_list : action_value_list COMMA action_value
+                            | action_value COMMA action_value'''
+        if len(p) == 4:
+            if isinstance(p[1], list):
+                p[0] = p[1] + [p[3]]
+            else:
+                p[0] = [p[1], p[3]]
+    
+    def p_action_value(self, p):
+        '''action_value : READ
+                       | WRITE
+                       | DELETE
+                       | EXECUTE
+                       | CREATE
+                       | UPDATE
+                       | LIST
+                       | ASTERISK'''
+        if p[1] == '*':
+            p[0] = '*'
+        else:
+            p[0] = p[1].lower()
     
     def p_value_list(self, p):
         '''value_list : value_list COMMA value
@@ -110,13 +148,24 @@ class SPLParser:
         p[0] = p[1]
     
     def p_action_list(self, p):
-        '''action_list : action_list COMMA IDENTIFIER
-                      | IDENTIFIER
+        '''action_list : action_list COMMA action
+                      | action
                       | ASTERISK'''
         if len(p) == 4:
             p[0] = p[1] + [p[3]]
         else:
             p[0] = [p[1]]
+    
+    def p_action(self, p):
+        '''action : READ
+                 | WRITE
+                 | DELETE
+                 | EXECUTE
+                 | CREATE
+                 | UPDATE
+                 | LIST'''
+        # Return lowercase for consistency
+        p[0] = p[1].lower()
     
     def p_resource_spec(self, p):
         '''resource_spec : IDENTIFIER
@@ -239,51 +288,3 @@ class SPLParser:
             return None
         
         return result
-    
-    def parse_file(self, filename):
-        """Parse a file containing SPL code"""
-        with open(filename, 'r') as f:
-            data = f.read()
-        return self.parse(data)
-
-
-if __name__ == '__main__':
-    sample_code = '''
-    ROLE Admin {
-        can: *
-    }
-    
-    ROLE Developer {
-        can: read, write
-    }
-    
-    RESOURCE DB_Finance {
-        path: "/data/financial"
-    }
-    
-    ALLOW action: read, write ON RESOURCE: DB_Finance
-    IF (time.hour >= 9 AND time.hour <= 17)
-    
-    DENY action: delete ON RESOURCE: DB_Finance
-    IF (user.role == "Guest")
-    
-    USER JaneDoe {
-        role: Developer
-    }
-    '''
-    
-    parser = SPLParser()
-    parser.build()
-    
-    print("=" * 60)
-    print("PARSING SPL CODE")
-    print("=" * 60)
-    
-    ast = parser.parse(sample_code)
-    
-    if ast:
-        print("\n✓ Parsing successful!")
-        printer = ASTPrinter()
-        printer.visit(ast)
-    else:
-        print("\n✗ Parsing failed!")

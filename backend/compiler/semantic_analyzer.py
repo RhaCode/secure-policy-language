@@ -2,10 +2,14 @@
 backend/compiler/semantic_analyzer.py
 Comprehensive Semantic Analysis for Secure Policy Language (SPL)
 Performs semantic checks, validates policies, detects conflicts
+
+KEY FIX: 
+- Removed duplicate visit_RoleNode definition
+- Added proper action validation for role 'can' property
+- Fixed method indentation and class structure
 """
 
 from compiler.parser import (
-    ASTNode, ProgramNode, RoleNode, UserNode, ResourceNode, PolicyNode,
     BinaryOpNode, UnaryOpNode, AttributeNode, LiteralNode, ASTVisitor
 )
 from compiler.symbol_table import SymbolTable, Symbol, SymbolType
@@ -72,7 +76,12 @@ class SemanticAnalyzer(ASTVisitor):
     - Validates attribute access
     - Checks for undefined references
     - Analyzes condition expressions
+    - Validates role names used in conditions
+    - VALIDATES ACTIONS in role definitions
     """
+    
+    # Valid actions that can be used
+    VALID_ACTIONS = {'read', 'write', 'delete', 'execute', 'create', 'update', 'list', '*'}
     
     def __init__(self):
         self.symbol_table = SymbolTable()
@@ -92,6 +101,9 @@ class SemanticAnalyzer(ASTVisitor):
         self.guest_delete_permissions = []
         self.overly_permissive_policies = []
         self.undefined_references = []
+        
+        # Track role references in conditions
+        self.role_references_in_conditions = []
     
     def analyze(self, ast):
         """
@@ -139,9 +151,9 @@ class SemanticAnalyzer(ASTVisitor):
                     error = SemanticError(
                         f"User '{user_name}' references undefined role '{role_name}'",
                         user_node.line_number,
-                        "WARNING"
+                        "ERROR"
                     )
-                    self.warnings.append(error)
+                    self.errors.append(error)
                     self.undefined_references.append(('role', role_name, user_name))
         
         # Validate policy resource references
@@ -158,6 +170,21 @@ class SemanticAnalyzer(ASTVisitor):
                         )
                         self.warnings.append(warning)
                         self.undefined_references.append(('resource', resource_name, 'policy'))
+        
+        # Validate role references in conditions
+        self._validate_role_references_in_conditions()
+    
+    def _validate_role_references_in_conditions(self):
+        """Validate that all role names used in conditions are defined"""
+        for role_name, line_number, context in self.role_references_in_conditions:
+            if role_name not in self.roles:
+                error = SemanticError(
+                    f"Condition references undefined role '{role_name}'{context}",
+                    line_number,
+                    "ERROR"
+                )
+                self.errors.append(error)
+                self.undefined_references.append(('role', role_name, 'condition'))
     
     def _phase_conflict_detection(self):
         """Phase 3: Detect conflicts between policies"""
@@ -245,6 +272,29 @@ class SemanticAnalyzer(ASTVisitor):
             symbol.defined_line = node.line_number
             self.symbol_table.define(symbol)
             
+            # ===== VALIDATION: Check 'can' property for valid actions =====
+            if 'can' in node.properties:
+                can_value = node.properties['can']
+                
+                # Handle both single value and list of values
+                actions_to_check = []
+                if isinstance(can_value, list):
+                    actions_to_check = can_value
+                else:
+                    actions_to_check = [can_value]
+                
+                # Validate each action
+                for action in actions_to_check:
+                    action_str = str(action).lower()
+                    if action_str not in self.VALID_ACTIONS:
+                        error = SemanticError(
+                            f"Invalid action '{action}' in role '{role_name}'. "
+                            f"Valid actions are: {', '.join(sorted(self.VALID_ACTIONS - {'*'}))} or *",
+                            node.line_number,
+                            "ERROR"
+                        )
+                        self.errors.append(error)
+            
             # Check for wildcard permissions (security risk)
             if 'can' in node.properties:
                 perms = node.properties['can']
@@ -295,8 +345,18 @@ class SemanticAnalyzer(ASTVisitor):
         """Process and validate policy rule"""
         self.policies.append(node)
         
+        # Validate actions
+        for action in node.actions:
+            if action != '*' and action not in self.VALID_ACTIONS:
+                warning = SemanticError(
+                    f"Unknown action '{action}' in policy",
+                    node.line_number,
+                    "WARNING"
+                )
+                self.warnings.append(warning)
+        
         # Analyze actions for sensitive operations
-        sensitive_actions = {'delete', 'modify', 'execute', 'admin'}
+        sensitive_actions = {'delete', 'execute', 'update'}
         has_sensitive = any(action in sensitive_actions for action in node.actions)
         
         if has_sensitive and node.condition is None:
@@ -316,6 +376,34 @@ class SemanticAnalyzer(ASTVisitor):
         """Process binary operation in conditions"""
         self.visit(node.left)
         self.visit(node.right)
+        
+        # Check for role comparisons
+        if node.operator in ['==', '!=']:
+            self._check_role_comparison(node)
+    
+    def _check_role_comparison(self, node):
+        """Check if this is a role comparison and validate role name"""
+        # Look for patterns like: user.role == "RoleName"
+        if (isinstance(node.left, AttributeNode) and 
+            node.left.object_name == 'user' and 
+            node.left.attribute_name == 'role' and
+            isinstance(node.right, LiteralNode) and
+            isinstance(node.right.value, str)):
+            
+            role_name = node.right.value
+            context = f" in condition at line {node.line_number}"
+            self.role_references_in_conditions.append((role_name, node.line_number, context))
+        
+        # Also check the reverse: "RoleName" == user.role
+        elif (isinstance(node.right, AttributeNode) and 
+              node.right.object_name == 'user' and 
+              node.right.attribute_name == 'role' and
+              isinstance(node.left, LiteralNode) and
+              isinstance(node.left.value, str)):
+            
+            role_name = node.left.value
+            context = f" in condition at line {node.line_number}"
+            self.role_references_in_conditions.append((role_name, node.line_number, context))
     
     def visit_UnaryOpNode(self, node):
         """Process unary operation in conditions"""
@@ -405,7 +493,7 @@ class SemanticAnalyzer(ASTVisitor):
         for policy in self.policies:
             if policy.policy_type == 'ALLOW':
                 # Check if admin actions are given to non-admin roles
-                admin_actions = {'delete', 'modify', 'execute', 'admin'}
+                admin_actions = {'delete', 'execute'}
                 has_admin_action = any(action in admin_actions for action in policy.actions)
                 
                 if has_admin_action:
@@ -467,6 +555,7 @@ class SemanticAnalyzer(ASTVisitor):
                 "policies_defined": len(self.policies),
                 "conflicts_found": len(self.conflicts),
                 "undefined_references": len(self.undefined_references),
+                "role_references_in_conditions": len(self.role_references_in_conditions),
                 "security_risks": len(self.wildcard_permissions) + len(self.guest_delete_permissions)
             },
             "security_issues": {
@@ -506,47 +595,3 @@ class SemanticAnalyzer(ASTVisitor):
                 print(f"    {conflict['description']}")
         
         print("=" * 80)
-
-
-if __name__ == '__main__':
-    from parser import SPLParser
-    
-    sample_code = '''
-    ROLE Administrator {
-        can: *
-    }
-    
-    ROLE Guest {
-        can: read
-    }
-    
-    RESOURCE DB_Finance {
-        path: "/data/financial"
-    }
-    
-    ALLOW action: read ON RESOURCE: DB_Finance
-    IF (user.role == "Developer")
-    
-    DENY action: read ON RESOURCE: DB_Finance
-    IF (user.role == "Developer")
-    
-    ALLOW action: delete ON RESOURCE: DB_Finance
-    IF (user.role == "Guest")
-    
-    USER Alice {
-        role: Administrator
-    }
-    
-    USER Bob {
-        role: Developer
-    }
-    '''
-    
-    parser = SPLParser()
-    parser.build()
-    ast = parser.parse(sample_code)
-    
-    if ast:
-        analyzer = SemanticAnalyzer()
-        results = analyzer.analyze(ast)
-        analyzer.print_report(results)
