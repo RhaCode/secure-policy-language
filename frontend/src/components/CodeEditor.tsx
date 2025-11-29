@@ -1,6 +1,5 @@
 // frontend/src/components/CodeEditor.tsx
 import React, { useState, useEffect, useRef, useMemo, type ReactNode } from 'react';
-import { Code2 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import type { CodeEditorProps } from '../types';
 
@@ -44,7 +43,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 
   const SPL_ACTIONS = new Set([
     'read', 'READ', 'write', 'WRITE', 'delete', 'DELETE',
-    'execute', 'EXECUTE', 'create', 'CREATE', 'update', 'UPDATE', 'list', 'LIST'
+    'execute', 'EXECUTE', 'create', 'CREATE', 'update', 'UPDATE', 'list', 'LIST', '*'
   ]);
 
   const SPL_OPERATORS = new Set([
@@ -365,12 +364,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   return (
     <div className={`${isDark ? 'border-[#3F3F46] bg-[#242426]' : 'border-[#D1D5DB] bg-white'} border overflow-hidden flex flex-col h-full ${className}`}>
       {/* Editor Header */}
-      <div className={`shrink-0 ${isDark ? 'bg-[#2D2E30] border-[#3F3F46]' : 'bg-[#F9FAFB] border-[#D1D5DB]'} px-4 py-3 border-b flex justify-between items-center`}>
-        <div className="flex items-center gap-2">
-          <Code2 size={18} className={isDark ? 'text-[#60A5FA]' : 'text-[#2563EB]'} />
-          <h3 className={`font-semibold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>SPL Editor</h3>
-        </div>
-        
+      <div className={`shrink-0 ${isDark ? 'bg-[#2D2E30] border-[#3F3F46]' : 'bg-[#F9FAFB] border-[#D1D5DB]'} px-4 py-3 border-b flex justify-end items-center`}>
         <div className="flex items-center gap-4">
           {/* Issue Status */}
           <div className="flex gap-4 text-sm mr-4">
