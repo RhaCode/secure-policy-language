@@ -13,4 +13,4 @@ COPY . /app
 ENV PYTHONUNBUFFERED=1
 
 # Azure uses dynamic PORT, default fallback is 8000
-CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-8000} backend.app:app --workers 1"]
+CMD ["gunicorn", "--bind", "0.0.0.0:80", "app:app"]
