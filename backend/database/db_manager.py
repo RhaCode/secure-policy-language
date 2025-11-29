@@ -1,7 +1,7 @@
 """
 backend/database/db_manager.py
-SQLite Database Manager for User/Resource Management - FIXED VERSION
-Resolves "database is locked" errors with proper connection management
+Simplified SQLite Database Manager for User/Resource Management
+Uses standard SQLite configuration without WAL or complex concurrency handling
 """
 
 import sqlite3
@@ -9,7 +9,6 @@ import json
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 import os
-import threading
 from contextlib import contextmanager
 
 
@@ -19,45 +18,24 @@ class DatabaseManager:
     def __init__(self, db_path: str = "spl_database.db"):
         """Initialize database connection"""
         self.db_path = db_path
-        self._local = threading.local()
         self.create_tables()
     
     @contextmanager
     def get_connection(self):
         """
         Context manager for database connections
-        Ensures proper cleanup and transaction handling
+        Creates a fresh connection for each operation
         """
-        # Each thread gets its own connection
-        if not hasattr(self._local, 'conn') or self._local.conn is None:
-            self._local.conn = sqlite3.connect(
-                self.db_path,
-                timeout=30.0,  # Wait up to 30 seconds for locks
-                isolation_level=None  # Autocommit mode
-            )
-            self._local.conn.row_factory = sqlite3.Row
-            # Enable WAL mode for better concurrency
-            self._local.conn.execute('PRAGMA journal_mode=WAL')
-        
+        conn = sqlite3.connect(self.db_path, timeout=10.0)
+        conn.row_factory = sqlite3.Row
         try:
-            yield self._local.conn
+            yield conn
+            conn.commit()
         except Exception as e:
-            if self._local.conn:
-                try:
-                    self._local.conn.rollback()
-                except:
-                    pass
+            conn.rollback()
             raise e
-    
-    def close(self):
-        """Close database connection for current thread"""
-        if hasattr(self._local, 'conn') and self._local.conn:
-            try:
-                self._local.conn.close()
-            except:
-                pass
-            finally:
-                self._local.conn = None
+        finally:
+            conn.close()
     
     def create_tables(self):
         """Create all necessary tables"""
@@ -120,8 +98,6 @@ class DatabaseManager:
                     FOREIGN KEY (created_by) REFERENCES users(username)
                 )
             ''')
-            
-            conn.commit()
     
     # ============ USER OPERATIONS ============
     
@@ -130,60 +106,47 @@ class DatabaseManager:
         """Create a new user"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            
             cursor.execute('''
                 INSERT INTO users (username, role, email, department)
                 VALUES (?, ?, ?, ?)
             ''', (username, role, email, department))
-            
-            conn.commit()
             return cursor.lastrowid
     
     def get_user(self, username: str) -> Optional[Dict[str, Any]]:
         """Get user by username"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            
             cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
             row = cursor.fetchone()
-            
-            if row:
-                return dict(row)
-            return None
+            return dict(row) if row else None
     
     def get_all_users(self) -> List[Dict[str, Any]]:
         """Get all users"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            
             cursor.execute('SELECT * FROM users WHERE active = 1 ORDER BY username')
-            rows = cursor.fetchall()
-            
-            return [dict(row) for row in rows]
+            return [dict(row) for row in cursor.fetchall()]
     
     def update_user(self, username: str, **kwargs) -> bool:
         """Update user information"""
+        valid_fields = ['role', 'email', 'department', 'active']
+        updates = []
+        values = []
+        
+        for field, value in kwargs.items():
+            if field in valid_fields:
+                updates.append(f"{field} = ?")
+                values.append(value)
+        
+        if not updates:
+            return False
+        
+        values.append(username)
+        query = f"UPDATE users SET {', '.join(updates)} WHERE username = ?"
+        
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            
-            valid_fields = ['role', 'email', 'department', 'active']
-            updates = []
-            values = []
-            
-            for field, value in kwargs.items():
-                if field in valid_fields:
-                    updates.append(f"{field} = ?")
-                    values.append(value)
-            
-            if not updates:
-                return False
-            
-            values.append(username)
-            query = f"UPDATE users SET {', '.join(updates)} WHERE username = ?"
-            
             cursor.execute(query, values)
-            conn.commit()
-            
             return cursor.rowcount > 0
     
     def delete_user(self, username: str) -> bool:
@@ -197,70 +160,54 @@ class DatabaseManager:
         """Create a new resource"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            
             cursor.execute('''
                 INSERT INTO resources (name, type, path, description, owner)
                 VALUES (?, ?, ?, ?, ?)
             ''', (name, type, path, description, owner))
-            
-            conn.commit()
             return cursor.lastrowid
     
     def get_resource(self, name: str) -> Optional[Dict[str, Any]]:
         """Get resource by name"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            
             cursor.execute('SELECT * FROM resources WHERE name = ?', (name,))
             row = cursor.fetchone()
-            
-            if row:
-                return dict(row)
-            return None
+            return dict(row) if row else None
     
     def get_all_resources(self) -> List[Dict[str, Any]]:
         """Get all resources"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            
             cursor.execute('SELECT * FROM resources ORDER BY name')
-            rows = cursor.fetchall()
-            
-            return [dict(row) for row in rows]
+            return [dict(row) for row in cursor.fetchall()]
     
     def update_resource(self, name: str, **kwargs) -> bool:
         """Update resource information"""
+        valid_fields = ['type', 'path', 'description', 'owner']
+        updates = []
+        values = []
+        
+        for field, value in kwargs.items():
+            if field in valid_fields:
+                updates.append(f"{field} = ?")
+                values.append(value)
+        
+        if not updates:
+            return False
+        
+        values.append(name)
+        query = f"UPDATE resources SET {', '.join(updates)} WHERE name = ?"
+        
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            
-            valid_fields = ['type', 'path', 'description', 'owner']
-            updates = []
-            values = []
-            
-            for field, value in kwargs.items():
-                if field in valid_fields:
-                    updates.append(f"{field} = ?")
-                    values.append(value)
-            
-            if not updates:
-                return False
-            
-            values.append(name)
-            query = f"UPDATE resources SET {', '.join(updates)} WHERE name = ?"
-            
             cursor.execute(query, values)
-            conn.commit()
-            
             return cursor.rowcount > 0
     
     def delete_resource(self, name: str) -> bool:
         """Delete resource"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            
             cursor.execute('DELETE FROM resources WHERE name = ?', (name,))
-            conn.commit()
-            
             return cursor.rowcount > 0
     
     # ============ AUDIT LOG OPERATIONS ============
@@ -270,14 +217,11 @@ class DatabaseManager:
         """Log an access attempt"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            
             cursor.execute('''
                 INSERT INTO audit_logs 
                 (username, action, resource, allowed, reason, ip_address)
                 VALUES (?, ?, ?, ?, ?, ?)
             ''', (username, action, resource, allowed, reason, ip_address))
-            
-            conn.commit()
             return cursor.lastrowid
     
     def get_audit_logs(self, username: str = None, resource: str = None, 
@@ -301,9 +245,7 @@ class DatabaseManager:
             params.append(limit)
             
             cursor.execute(query, params)
-            rows = cursor.fetchall()
-            
-            return [dict(row) for row in rows]
+            return [dict(row) for row in cursor.fetchall()]
     
     def get_access_statistics(self) -> Dict[str, Any]:
         """Get access statistics"""
@@ -359,42 +301,29 @@ class DatabaseManager:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
-            # Start explicit transaction
-            cursor.execute('BEGIN IMMEDIATE')
+            # Deactivate previous versions
+            cursor.execute('''
+                UPDATE compiled_policies 
+                SET active = 0 
+                WHERE name = ?
+            ''', (name,))
             
-            try:
-                # Deactivate previous versions
-                cursor.execute('''
-                    UPDATE compiled_policies 
-                    SET active = 0 
-                    WHERE name = ?
-                ''', (name,))
-                
-                # Get next version number
-                cursor.execute('''
-                    SELECT COALESCE(MAX(version), 0) + 1 as next_version
-                    FROM compiled_policies
-                    WHERE name = ?
-                ''', (name,))
-                next_version = cursor.fetchone()['next_version']
-                
-                # Insert new version
-                cursor.execute('''
-                    INSERT INTO compiled_policies 
-                    (name, source_code, compiled_json, version, created_by)
-                    VALUES (?, ?, ?, ?, ?)
-                ''', (name, source_code, compiled_json, next_version, created_by))
-                
-                policy_id = cursor.lastrowid
-                
-                # Commit transaction
-                conn.commit()
-                
-                return policy_id
+            # Get next version number
+            cursor.execute('''
+                SELECT COALESCE(MAX(version), 0) + 1 as next_version
+                FROM compiled_policies
+                WHERE name = ?
+            ''', (name,))
+            next_version = cursor.fetchone()['next_version']
             
-            except Exception as e:
-                conn.rollback()
-                raise e
+            # Insert new version
+            cursor.execute('''
+                INSERT INTO compiled_policies 
+                (name, source_code, compiled_json, version, created_by)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (name, source_code, compiled_json, next_version, created_by))
+            
+            return cursor.lastrowid
     
     def get_active_policy(self, name: str = None) -> Optional[Dict[str, Any]]:
         """Get active policy"""
@@ -417,23 +346,18 @@ class DatabaseManager:
                 ''')
             
             row = cursor.fetchone()
-            if row:
-                return dict(row)
-            return None
+            return dict(row) if row else None
     
     def get_policy_history(self, name: str) -> List[Dict[str, Any]]:
         """Get version history of a policy"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            
             cursor.execute('''
                 SELECT * FROM compiled_policies
                 WHERE name = ?
                 ORDER BY version DESC
             ''', (name,))
-            
-            rows = cursor.fetchall()
-            return [dict(row) for row in rows]
+            return [dict(row) for row in cursor.fetchall()]
     
     # ============ INITIALIZATION ============
     
