@@ -2,7 +2,7 @@
 backend/api/routes.py
 UNIFIED API Routes for SPL Compiler & Execution Engine
 SOURCE CODE AS SINGLE SOURCE OF TRUTH
-All data comes from compiled SPL code - no manual CRUD operations
+All data comes from compiled AuthScript policies
 """
 
 from flask import Blueprint, request, jsonify

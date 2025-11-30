@@ -1,14 +1,10 @@
 """
-backend/compiler/lexer.py (FIXED)
-Secure Policy Language (SPL) Lexer
+backend/compiler/lexer.py
+AuthScript Lexer
 Tokenizes SPL source code using PLY (Python Lex-Yacc)
-
-KEY FIX: Action keywords (read, write, delete, etc.) are now properly recognized
-as tokens and available for use both in ACTION contexts and as values in property lists.
 """
 
 import ply.lex as lex
-import os
 
 class SPLLexer:
     """Lexical analyzer for Secure Policy Language"""
@@ -20,7 +16,7 @@ class SPLLexer:
         'ON', 'IF', 'AND', 'OR', 'NOT',
         'ACTION', 'CAN', 'TRUE', 'FALSE',
         
-        # Action tokens - these are now proper tokens
+        # Action tokens
         'READ', 'WRITE', 'DELETE', 'EXECUTE', 'CREATE', 'UPDATE', 'LIST',
         
         # Identifiers and literals
@@ -92,7 +88,7 @@ class SPLLexer:
         'LIST': 'LIST',
     }
     
-    # Identifier (must come after keywords)
+    # Identifier
     def t_IDENTIFIER(self, t):
         r'[a-zA-Z_][a-zA-Z0-9_]*'
         # Check if it's a reserved keyword - normalize to lowercase for comparison
@@ -173,7 +169,6 @@ class SPLLexer:
         if not self.lexer:
             self.build()
         
-        # CRITICAL FIX: Reset line number before each tokenization
         self.reset()
         
         self.lexer.input(data)

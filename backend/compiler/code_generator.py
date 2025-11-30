@@ -1,9 +1,6 @@
 """
-backend/compiler/code_generator.py (FIXED)
+backend/compiler/code_generator.py
 Auto-generates policies from role definitions
-
-KEY FIX: When no explicit policies are defined, automatically generate
-ALLOW policies for each role based on their 'can' permissions
 """
 
 from compiler.parser import (

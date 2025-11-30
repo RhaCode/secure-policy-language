@@ -1,13 +1,7 @@
 """
 backend/compiler/parser.py (FIXED)
-Secure Policy Language (SPL) Parser
+AuthScript Parser
 Performs syntax analysis and builds Abstract Syntax Tree (AST)
-
-KEY FIX: 
-- Action tokens (READ, WRITE, DELETE, etc.) are now REQUIRED in 'can' properties
-- Generic IDENTIFIERs are NOT allowed in 'can' values
-- Misspelled actions like 'execu' will now cause PARSE ERRORS, not semantic errors
-- Only valid action tokens or '*' are accepted in the 'can' property
 """
 
 import ply.yacc as yacc

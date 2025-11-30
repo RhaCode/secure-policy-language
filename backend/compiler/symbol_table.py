@@ -1,6 +1,6 @@
 """
 backend/compiler/symbol_table.py
-Symbol Table for Secure Policy Language (SPL)
+AuthScript Symbol Table
 Manages scopes, bindings, and symbol information
 """
 

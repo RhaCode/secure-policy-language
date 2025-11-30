@@ -1,13 +1,7 @@
 """
 backend/compiler/semantic_analyzer.py
-Comprehensive Semantic Analysis for Secure Policy Language (SPL)
+AuthScript Semantic Analysis
 Performs semantic checks, validates policies, detects conflicts
-
-KEY FIXES: 
-- Undefined role references: ERROR (blocks compilation)
-- Undefined resource references: ERROR (blocks compilation) ← NEW FIX
-- Invalid actions in roles: ERROR (blocks compilation)
-- Conflicting policies: WARNING (doesn't block, but reported)
 """
 
 from compiler.parser import (
@@ -157,7 +151,7 @@ class SemanticAnalyzer(ASTVisitor):
                     self.errors.append(error)
                     self.undefined_references.append(('role', role_name, user_name))
         
-        # Validate policy resource references - CRITICAL FIX
+        # Validate policy resource references
         for policy in self.policies:
             if isinstance(policy.resource, str):
                 resource_name = policy.resource
@@ -170,7 +164,6 @@ class SemanticAnalyzer(ASTVisitor):
                 # If it's a plain identifier (like "DB_Finance"), it MUST be defined
                 if not (is_path or has_wildcard or has_dot):
                     if resource_name not in self.resources:
-                        # THIS IS NOW AN ERROR, NOT A WARNING
                         error = SemanticError(
                             f"Policy references undefined resource '{resource_name}'. "
                             f"Define it with: RESOURCE {resource_name} {{ ... }}",

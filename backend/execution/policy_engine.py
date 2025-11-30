@@ -1,6 +1,6 @@
 """
 backend/execution/policy_engine.py
-Policy Execution Engine - Enforces compiled SPL policies
+Policy Execution Engine - Enforces compiled AuthScript policies
 """
 
 import json
