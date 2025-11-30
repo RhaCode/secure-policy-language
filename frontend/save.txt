@@ -173,5 +173,36 @@ EXECUTION ENGINE SHOULD:
 - Log all access attempts to audit table
 */
 
-ALLOW action: * ON RESOURCE: testData
-IF (user.role == "Admin")
+
+
+
+
+
+
+---
+
+**Create a secure policy language that supports:**
+
+1. **Roles & Users**
+   - Define roles with permissions (e.g., `ROLE Admin {can: *}`)
+   - Assign users to roles (e.g., `USER JaneDoe {role: Developer}`)
+
+2. **Resources**
+   - Define the assets being protected, often with wildcards (*)
+   - Example: `RESOURCE DB_Finance {path: /data/financial}`
+
+3. **Allow Permissions**
+   - Grant access with conditions based on time, IP, device, etc.
+   - Examples: 
+     - `ALLOW action: read, write ON resource: DB_Finance IF (time.hour > 9 AND time.hour < 17)`
+     - `ALLOW action: read ON resource: /data/* IF (request.ip == "192.168.1.0/24")`
+     - `ALLOW action: write ON resource: /docs/* IF (device.type == "corporate_laptop")`
+
+4. **Deny Rules**
+   - Explicit denials that override allows
+   - Example: `DENY action: delete ON resource: /data/* IF (user.role == Guest)`
+   - Enforce access rules based on defined conditions (time, IP, device)
+
+Your implementation should include a compiler/interpreter that processes this policy language.
+
+---

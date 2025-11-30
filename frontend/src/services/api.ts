@@ -5,7 +5,14 @@ import type {
   SecurityAnalysisResponse,
   TokenizeResponse,
   ParseResponse,
-  ValidateResponse
+  ValidateResponse,
+  AccessCheckContext,
+  AccessCheckResult,
+  UserInfo,
+  ResourceInfo,
+  PolicyInfo,
+  AuditLog,
+  AccessStatistics
 } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
@@ -22,7 +29,6 @@ class ApiService {
         ...options,
       });
 
-      // For compilation, we accept 200 responses even with parsing errors
       if (!response.ok && !url.includes('/compile')) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -36,7 +42,12 @@ class ApiService {
 
   // ============ COMPILER METHODS ============
 
-  async compileSPL(code: string, analyze: boolean = false, generateCode: boolean = false, format: string = 'json'): Promise<CompilationResponse> {
+  async compileSPL(
+    code: string, 
+    analyze: boolean = false, 
+    generateCode: boolean = false, 
+    format: string = 'json'
+  ): Promise<CompilationResponse> {
     return this.fetchWithErrorHandling(`${API_BASE}/compile`, {
       method: 'POST',
       body: JSON.stringify({ 
@@ -89,7 +100,19 @@ class ApiService {
 
   // ============ EXECUTION ENGINE METHODS ============
 
-  async checkAccess(username: string, action: string, resource: string, context?: any): Promise<any> {
+  /**
+   * Check access with extended context (time, IP, device)
+   * @param username - Username to check
+   * @param action - Action to perform (read, write, delete, etc.)
+   * @param resource - Resource name
+   * @param context - Extended context with time, request (IP), and device info
+   */
+  async checkAccess(
+    username: string, 
+    action: string, 
+    resource: string, 
+    context?: Partial<AccessCheckContext>
+  ): Promise<AccessCheckResult> {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/check-access`, {
       method: 'POST',
       body: JSON.stringify({ username, action, resource, context }),
@@ -102,75 +125,55 @@ class ApiService {
 
   // ============ READ-ONLY DATA ENDPOINTS ============
 
-  /**
-   * Get all users defined in compiled policy
-   * READ ONLY - Users are defined in SPL source code
-   */
-  async getUsers(): Promise<{ success: boolean; users: any[]; count: number }> {
+  async getUsers(): Promise<{ success: boolean; users: UserInfo[]; count: number }> {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/users`);
   }
 
-  /**
-   * Get specific user information
-   * READ ONLY
-   */
-  async getUser(username: string): Promise<{ success: boolean; user: any }> {
+  async getUser(username: string): Promise<{ success: boolean; user: UserInfo }> {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/users/${username}`);
   }
 
-  /**
-   * Get all resources defined in compiled policy
-   * READ ONLY - Resources are defined in SPL source code
-   */
-  async getResources(): Promise<{ success: boolean; resources: any[]; count: number }> {
+  async getResources(): Promise<{ success: boolean; resources: ResourceInfo[]; count: number }> {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/resources`);
   }
 
-  /**
-   * Get specific resource information
-   * READ ONLY
-   */
-  async getResource(name: string): Promise<{ success: boolean; resource: any }> {
-    // URL encode the name to handle special characters
+  async getResource(name: string): Promise<{ success: boolean; resource: ResourceInfo }> {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/resources/${encodeURIComponent(name)}`);
   }
 
-  /**
-   * Get active policy information
-   * READ ONLY - Policy is defined in SPL source code
-   */
-  async getPolicies(): Promise<any[]> {
+  async getPolicies(): Promise<PolicyInfo[]> {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/policies`);
   }
 
-  /**
-   * Get detailed information about a specific policy version
-   * READ ONLY
-   */
   async getPolicyDetails(policyId: number): Promise<{ success: boolean; policy: any }> {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/policies/${policyId}`);
   }
 
-  /**
-   * Get version history of a policy
-   * READ ONLY
-   */
-  async getPolicyHistory(name: string): Promise<{ success: boolean; policy_name: string; versions: any[]; total_versions: number }> {
-    // URL encode the name to handle special characters
+  async getPolicyHistory(name: string): Promise<{ 
+    success: boolean; 
+    policy_name: string; 
+    versions: any[]; 
+    total_versions: number 
+  }> {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/policies/${encodeURIComponent(name)}/history`);
   }
 
-  /**
-   * Get source code for the active policy
-   * READ ONLY
-   */
-  async getActivePolicySourceCode(): Promise<{ success: boolean; source_code: string; policy_name: string; policy_version: number }> {
+  async getActivePolicySourceCode(): Promise<{ 
+    success: boolean; 
+    source_code: string; 
+    policy_name: string; 
+    policy_version: number 
+  }> {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/policies/source`);
   }
 
   // ============ AUDIT LOGS & STATISTICS ============
 
-  async getAuditLogs(username?: string, resource?: string, limit: number = 100): Promise<{ success: boolean; logs: any[]; count: number }> {
+  async getAuditLogs(
+    username?: string, 
+    resource?: string, 
+    limit: number = 100
+  ): Promise<{ success: boolean; logs: AuditLog[]; count: number }> {
     const params = new URLSearchParams();
     if (username) params.append('username', username);
     if (resource) params.append('resource', resource);
@@ -179,13 +182,25 @@ class ApiService {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/audit-logs?${params.toString()}`);
   }
 
-  async getStatistics(): Promise<{ success: boolean; statistics: any }> {
+  async getStatistics(): Promise<{ 
+    success: boolean; 
+    statistics: {
+      users: { total: number; active: number };
+      resources: { total: number };
+      policies: { total: number };
+      access_logs: AccessStatistics;
+    }
+  }> {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/statistics`);
   }
 
   // ============ HEALTH CHECKS ============
 
-  async executionHealthCheck(): Promise<{ status: string; database: string; policy_engine: string }> {
+  async executionHealthCheck(): Promise<{ 
+    status: string; 
+    database: string; 
+    policy_engine: string 
+  }> {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/health`);
   }
 }

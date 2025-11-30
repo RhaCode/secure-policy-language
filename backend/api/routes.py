@@ -611,12 +611,23 @@ def check_access():
                 'error': 'No active policy loaded. Please compile and activate a policy first.'
             }), 500
         
+        # Check access with full context (time, request, device)
         result = engine.check_access(username, action, resource, context)
         
-        # Log to audit
+        # Log to audit with device and IP information
         database = get_db()
         if database:
-            ip_address = context.get('ip_address', request.remote_addr)
+            # Extract context info for audit logging
+            request_context = context.get('request', {})
+            device_context = context.get('device', {})
+            
+            ip_address = request_context.get('ip', request.remote_addr)
+            device_type = device_context.get('type')
+            device_os = device_context.get('os')
+            device_browser = device_context.get('browser')
+            device_trusted = device_context.get('trusted')
+            device_location = device_context.get('location')
+            
             try:
                 database.log_access(
                     username=username,
@@ -624,7 +635,12 @@ def check_access():
                     resource=resource,
                     allowed=result['allowed'],
                     reason=result['reason'],
-                    ip_address=ip_address
+                    ip_address=ip_address,
+                    device_type=device_type,
+                    device_os=device_os,
+                    device_browser=device_browser,
+                    device_trusted=device_trusted,
+                    device_location=device_location
                 )
             except Exception as e:
                 print(f"Warning: Failed to log access: {e}")
@@ -632,10 +648,12 @@ def check_access():
         return jsonify(result)
     
     except Exception as e:
+        print(f"Error in check_access: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'error': str(e)
         }), 500
-
 
 @api.route('/execution/user-permissions/<username>', methods=['GET'])
 def get_user_permissions(username):

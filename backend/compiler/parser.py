@@ -1,5 +1,5 @@
 """
-backend/compiler/parser.py (FIXED)
+backend/compiler/parser.py
 AuthScript Parser
 Performs syntax analysis and builds Abstract Syntax Tree (AST)
 """

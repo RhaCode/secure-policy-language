@@ -1,7 +1,6 @@
 """
 backend/database/db_manager.py
-Simplified SQLite Database Manager for User/Resource Management
-Uses standard SQLite configuration without WAL or complex concurrency handling
+SQLite Database Manager for User/Resource Management
 """
 
 import sqlite3
@@ -69,7 +68,7 @@ class DatabaseManager:
                 )
             ''')
             
-            # Audit logs table
+            # Audit logs table - UPDATED with device and IP fields
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS audit_logs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -80,6 +79,11 @@ class DatabaseManager:
                     allowed BOOLEAN NOT NULL,
                     reason TEXT,
                     ip_address TEXT,
+                    device_type TEXT,
+                    device_os TEXT,
+                    device_browser TEXT,
+                    device_trusted BOOLEAN,
+                    device_location TEXT,
                     FOREIGN KEY (username) REFERENCES users(username)
                 )
             ''')
@@ -210,18 +214,41 @@ class DatabaseManager:
             cursor.execute('DELETE FROM resources WHERE name = ?', (name,))
             return cursor.rowcount > 0
     
-    # ============ AUDIT LOG OPERATIONS ============
+    # ============ AUDIT LOG OPERATIONS (UPDATED) ============
     
     def log_access(self, username: str, action: str, resource: str, 
-                   allowed: bool, reason: str, ip_address: str = None) -> int:
-        """Log an access attempt"""
+                   allowed: bool, reason: str, 
+                   ip_address: str = None,
+                   device_type: str = None,
+                   device_os: str = None,
+                   device_browser: str = None,
+                   device_trusted: bool = None,
+                   device_location: str = None) -> int:
+        """
+        Log an access attempt with device and IP information
+        
+        Args:
+            username: User attempting access
+            action: Action attempted
+            resource: Resource accessed
+            allowed: Whether access was granted
+            reason: Reason for decision
+            ip_address: IP address of request
+            device_type: Type of device (laptop, mobile, etc.)
+            device_os: Operating system
+            device_browser: Browser used
+            device_trusted: Whether device is trusted
+            device_location: Physical location of device
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT INTO audit_logs 
-                (username, action, resource, allowed, reason, ip_address)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (username, action, resource, allowed, reason, ip_address))
+                (username, action, resource, allowed, reason, ip_address,
+                 device_type, device_os, device_browser, device_trusted, device_location)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (username, action, resource, allowed, reason, ip_address,
+                  device_type, device_os, device_browser, device_trusted, device_location))
             return cursor.lastrowid
     
     def get_audit_logs(self, username: str = None, resource: str = None, 

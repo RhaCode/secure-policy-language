@@ -1,11 +1,50 @@
 // frontend/src/types.ts
-// API Response Types
+
+// ============================================================================
+// CONTEXT TYPES (NEW - for IP and Device support)
+// ============================================================================
+
+export interface TimeContext {
+  hour: number;
+  minute: number;
+  day?: number;
+  month?: number;
+  year?: number;
+  weekday?: number;
+}
+
+export interface RequestContext {
+  ip: string;
+  method?: string;
+  path?: string;
+  headers?: Record<string, string>;
+  user_agent?: string;
+}
+
+export interface DeviceContext {
+  type: string;
+  trusted: boolean;
+  os: string;
+  browser: string;
+  location: string;
+  id?: string;
+}
+
+export interface AccessCheckContext {
+  time: TimeContext;
+  request: RequestContext;
+  device: DeviceContext;
+}
+
+// ============================================================================
+// API RESPONSE TYPES
+// ============================================================================
+
 export interface Token {
   type: string;
   value: string;
   line: number;
 }
-
 
 export interface CompilationWarning {
   type: string;
@@ -110,12 +149,129 @@ export interface ParseResponse {
   error?: string;
 }
 
-// Component Props Types
+export interface CompilationResponse {
+  success: boolean;
+  stage?: string;
+  error?: string;
+  message?: string;
+  errors?: CompilationError[];
+  database_updated?: boolean;
+  stages: {
+    tokenization: TokenizationStage;
+    parsing: ParsingStage;
+    semantic_analysis?: SemanticAnalysisStage;
+    code_generation?: CodeGenerationStage;
+  };
+}
+
+export interface ValidateResponse {
+  valid: boolean;
+  stage?: string;
+  errors: string[] | CompilationError[];
+  warnings?: CompilationWarning[];
+  conflicts?: PolicyConflict[];
+  message?: string;
+  error?: string;
+}
+
+export interface CompilationError {
+  type: string;
+  message: string;
+  line?: number;
+}
+
+// ============================================================================
+// EXECUTION ENGINE TYPES (NEW - for access control)
+// ============================================================================
+
+export interface UserInfo {
+  username: string;
+  role: string;
+  email?: string;
+  department?: string;
+  active?: boolean;
+}
+
+export interface ResourceInfo {
+  name: string;
+  type: string;
+  path: string;
+  description?: string;
+  owner?: string;
+}
+
+export interface PolicyInfo {
+  id: number;
+  name: string;
+  version: number;
+  created_at: string;
+  active: boolean;
+  created_by: string;
+}
+
+export interface AccessCheckResult {
+  allowed: boolean;
+  reason: string;
+  matched_policies?: Array<{
+    type: string;
+    actions: string[];
+    resource: string;
+    condition?: string;
+  }>;
+  context?: {
+    user: {
+      name: string;
+      role: string;
+    };
+    resource: {
+      name: string;
+    };
+    time: TimeContext;
+    request?: RequestContext;
+    device?: DeviceContext;
+  };
+  error?: string;
+}
+
+export interface AuditLog {
+  id: number;
+  username: string;
+  action: string;
+  resource: string;
+  allowed: boolean;
+  reason: string;
+  ip_address?: string;
+  timestamp: string;
+}
+
+export interface AccessStatistics {
+  total_requests: number;
+  allowed: number;
+  denied: number;
+  top_users?: Array<{ username: string; count: number }>;
+  top_resources?: Array<{ resource: string; count: number }>;
+}
+
+// ============================================================================
+// COMPONENT PROPS TYPES
+// ============================================================================
+
 export interface CodeEditorProps {
   code: string;
   onCodeChange: (code: string) => void;
   errors: CompilationError[];
   className?: string;
+  onValidate?: () => void;
+  onCompile?: () => void;
+  onSecurityAnalysis?: () => void;
+  onDebug?: () => void;
+  onDownload?: () => void;
+  onExecute?: () => void;
+  isCompiling?: boolean;
+  isAnalyzingSecurity?: boolean;
+  isDebugging?: boolean;
+  isValidating?: boolean;
+  hasCompiledPolicy?: boolean;
 }
 
 export interface CompilerOutputProps {
@@ -136,63 +292,4 @@ export interface RiskReportProps {
 
 export interface NavbarProps {
   className?: string;
-}
-
-// frontend/src/types.ts
-export interface CodeEditorProps {
-  code: string;
-  onCodeChange: (code: string) => void;
-  errors: CompilationError[];
-  className?: string;
-  onValidate?: () => void;
-  onCompile?: () => void;
-  onSecurityAnalysis?: () => void;
-  onDebug?: () => void;
-  onDownload?: () => void;
-  onExecute?: () => void;
-  isCompiling?: boolean;
-  isAnalyzingSecurity?: boolean;
-  isDebugging?: boolean;
-  isValidating?: boolean;
-  hasCompiledPolicy?: boolean;
-}
-
-
-
-
-
-
-
-
-
-
-export interface CompilationResponse {
-  success: boolean;
-  stage?: string; // 'parsing' | 'semantic_analysis' | etc.
-  error?: string;
-  message?: string; // NEW: Message from backend about blocking
-  errors?: CompilationError[]; // NEW: Direct errors array for blocked compilation
-  database_updated?: boolean; // NEW: Track if database was updated
-  stages: {
-    tokenization: TokenizationStage;
-    parsing: ParsingStage;
-    semantic_analysis?: SemanticAnalysisStage;
-    code_generation?: CodeGenerationStage;
-  };
-}
-
-export interface ValidateResponse {
-  valid: boolean;
-  stage?: string; // NEW: Which stage failed
-  errors: string[] | CompilationError[]; // Support both formats
-  warnings?: CompilationWarning[]; // NEW: Warnings from validation
-  conflicts?: PolicyConflict[]; // NEW: Conflicts from validation
-  message?: string;
-  error?: string;
-}
-
-export interface CompilationError {
-  type: string;
-  message: string;
-  line?: number;
 }

@@ -429,13 +429,14 @@ class SemanticAnalyzer(ASTVisitor):
         pass
     
     def visit_AttributeNode(self, node):
-        """Process attribute access (e.g., user.role, time.hour)"""
+        """Process attribute access (e.g., user.role, time.hour, request.ip, device.type)"""
         # Validate known objects
         valid_objects = {
             'user': ['role', 'name', 'id', 'department', 'clearance', 'location'],
             'time': ['hour', 'minute', 'day', 'month', 'year', 'weekday'],
             'request': ['ip', 'method', 'path', 'headers', 'user_agent'],
-            'resource': ['path', 'type', 'owner', 'sensitivity']
+            'resource': ['path', 'type', 'owner', 'sensitivity'],
+            'device': ['type', 'id', 'os', 'browser', 'location', 'trusted']
         }
         
         if node.object_name in valid_objects:
