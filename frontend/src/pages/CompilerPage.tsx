@@ -54,9 +54,6 @@ export default function CompilerPage() {
         const response = await apiService.getActivePolicySourceCode();
         if (response.success && response.source_code) {
           setCode(response.source_code);
-          console.log(
-            `✓ Loaded active policy: ${response.policy_name} v${response.policy_version}`
-          );
         }
       } catch (error) {
         console.log("No active policy found - starting with empty editor");

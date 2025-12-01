@@ -259,7 +259,38 @@ class PolicyEngine:
         try:
             eval_str = condition
             
-            # Replace attribute access (user.role, time.hour, device.type, etc.)
+            # Split by quotes to avoid replacing inside string literals
+            parts = []
+            in_quote = False
+            current = ""
+            quote_char = None
+            
+            for i, char in enumerate(eval_str):
+                if char in ['"', "'"]:
+                    if not in_quote:
+                        # Process accumulated text before quote
+                        if current:
+                            parts.append(('text', current))
+                            current = ""
+                        in_quote = True
+                        quote_char = char
+                        current = char
+                    elif char == quote_char:
+                        # End of quoted string
+                        current += char
+                        parts.append(('string', current))
+                        current = ""
+                        in_quote = False
+                        quote_char = None
+                    else:
+                        current += char
+                else:
+                    current += char
+            
+            if current:
+                parts.append(('text' if not in_quote else 'string', current))
+            
+            # Replace attribute access only in non-quoted parts
             def replace_attr(match):
                 obj = match.group(1)
                 attr = match.group(2)
@@ -276,10 +307,21 @@ class PolicyEngine:
                 
                 return f"context['{obj}']['{attr}']"
             
-            eval_str = re.sub(r'(\w+)\.(\w+)', replace_attr, eval_str)
+            # Reconstruct string with replacements only in text parts
+            result_parts = []
+            for part_type, part_text in parts:
+                if part_type == 'text':
+                    # Apply regex replacement only to non-quoted text
+                    result_parts.append(re.sub(r'(\w+)\.(\w+)', replace_attr, part_text))
+                else:
+                    # Keep quoted strings as-is
+                    result_parts.append(part_text)
+            
+            eval_str = ''.join(result_parts)
             
             # Replace boolean literals
             eval_str = eval_str.replace(' true', ' True').replace(' false', ' False')
+            eval_str = eval_str.replace('True', 'True').replace('False', 'False')
             
             # Replace comparison operators (already correct in Python)
             eval_str = eval_str.replace('==', '==').replace('!=', '!=')
