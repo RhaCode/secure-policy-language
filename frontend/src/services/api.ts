@@ -39,7 +39,7 @@ class ApiService {
     }
   }
 
-  // ============ COMPILER METHODS ============
+  // COMPILER METHODS 
 
   async compileSPL(
     code: string, 
@@ -86,7 +86,6 @@ class ApiService {
     });
   }
 
-  // ⭐ FIXED: correct Gemini endpoint + correct payload
   async analyzeSecurity(code: string) {
     return this.fetchWithErrorHandling(`${API_BASE}/llm/analyze-policy`, {
       method: "POST",
@@ -98,7 +97,7 @@ class ApiService {
     return this.fetchWithErrorHandling(`${API_BASE}/health`);
   }
 
-  // ============ EXECUTION ENGINE METHODS ============
+  // EXECUTION ENGINE METHODS
 
   async checkAccess(
     username: string, 
@@ -116,7 +115,7 @@ class ApiService {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/user-permissions/${username}`);
   }
 
-  // ============ READ-ONLY DATA ENDPOINTS ============
+  // READ-ONLY DATA ENDPOINTS
 
   async getUsers(): Promise<{ success: boolean; users: UserInfo[]; count: number }> {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/users`);
@@ -160,7 +159,7 @@ class ApiService {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/policies/source`);
   }
 
-  // ============ AUDIT LOGS & STATISTICS ============
+  // AUDIT LOGS & STATISTICS 
 
   async getAuditLogs(
     username?: string, 
@@ -198,7 +197,6 @@ class ApiService {
 
 export const apiService = new ApiService();
 
-// ⭐ FIXED: Correct bottom helper function
 export async function scanWithLLM(code: string) {
   const response = await fetch(
     `${import.meta.env.VITE_API_BASE_URL}/llm/analyze-policy`,

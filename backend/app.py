@@ -16,9 +16,7 @@ app = Flask(__name__, static_folder="static", static_url_path="")
 # Create absolute path to the static directory
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
-# -------------------------
 # FRONTEND ROUTE
-# -------------------------
 
 @app.route("/")
 def serve_frontend():
@@ -32,9 +30,8 @@ def serve_frontend():
             return jsonify({"error": "API endpoint not found"}), 404
     return send_from_directory(STATIC_DIR, path)
 
-# -------------------------
+
 # CORS CONFIG
-# -------------------------
 
 CORS(app, resources={
     r"/api/*": {
@@ -48,18 +45,16 @@ CORS(app, resources={
     }
 })
 
-# -------------------------
+
 # BLUEPRINTS
-# -------------------------
 
 app.register_blueprint(api, url_prefix='/api')
 app.register_blueprint(execution_api, url_prefix='/api/execution')
 app.register_blueprint(crud_api, url_prefix='/api/crud')
 
 
-# -------------------------
+
 # BACKEND INFO ROUTE
-# -------------------------
 
 @app.route('/api-info')
 def api_info():
@@ -74,9 +69,8 @@ def api_info():
         "api_base": "/api"
     })
 
-# -------------------------
+
 # HEALTH CHECK
-# -------------------------
 
 @app.route('/health')
 def health():
@@ -91,9 +85,8 @@ def health():
         }
     })
 
-# -------------------------
+
 # ERROR HANDLERS
-# -------------------------
 
 @app.errorhandler(404)
 def not_found(e):
@@ -111,9 +104,8 @@ def internal_error(e):
         "message": str(e)
     }), 500
 
-# -------------------------
+
 # LOCAL DEV RUN
-# -------------------------
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))

@@ -16,14 +16,14 @@ from backend.execution.policy_engine import PolicyEngine
 from backend.llm.gemini_client import analyze_policy_with_llm
 
 
-# Database availability (import test only)
+# Database availability 
 try:
     from backend.database.db_manager import DatabaseManager
     from backend.execution.policy_engine import PolicyEngine
     DB_AVAILABLE = True
 except ImportError as e:
     DB_AVAILABLE = False
-    print(f"⚠ DATABASE IMPORT WARNING (initial load): {e}")
+    print(f"DATABASE IMPORT WARNING (initial load): {e}")
 
 # Create single Blueprint for all routes
 api = Blueprint('api', __name__, url_prefix='/api')
@@ -89,9 +89,8 @@ class SPLDataExtractor(ASTVisitor):
         pass
 
 
-# ============================================================================
+
 # HELPER FUNCTIONS
-# ============================================================================
 
 def get_db():
     """Get database manager instance"""
@@ -237,10 +236,7 @@ def clear_and_populate_database(ast, source_code, compiled_json):
         traceback.print_exc()
         return False
 
-
-# # =====================================================================
 # LLM ROUTE (GEMINI)
-# =====================================================================
 
 @api.route('/llm/analyze-policy', methods=['POST'])
 def analyze_policy():
@@ -254,7 +250,7 @@ def analyze_policy():
     try:
         data = request.get_json() or {}
 
-        # Accept both keys (frontend compatibility)
+        # Accept both keys 
         spl_source = data.get("code") or data.get("policy_code")
 
         if not spl_source:
@@ -275,9 +271,8 @@ def analyze_policy():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-# ============================================================================
+
 # COMPILER ROUTES
-# ============================================================================
 
 @api.route('/tokenize', methods=['POST'])
 def tokenize():
@@ -626,9 +621,9 @@ def analyze_semantics():
         }), 500
 
 
-# ============================================================================
+
 # EXECUTION ROUTES
-# ============================================================================
+
 
 @api.route('/execution/check-access', methods=['POST'])
 def check_access():
@@ -1021,9 +1016,9 @@ def get_statistics():
         }), 500
 
 
-# ============================================================================
+
 # HEALTH CHECK ROUTES
-# ============================================================================
+
 
 @api.route('/health', methods=['GET'])
 def health_check():
@@ -1052,9 +1047,9 @@ def execution_health_check():
     })
 
 
-# ============================================================================
+
 # ERROR HANDLERS
-# ============================================================================
+
 
 @api.errorhandler(404)
 def api_not_found(error):
