@@ -172,7 +172,7 @@ class ASTVisitor:
             print(f'{self.indent()}{node.value}')
 
 
-# AST Printer for visualization
+    # AST Printer for visualization
 class ASTPrinter(ASTVisitor):
     """Pretty-print the AST structure"""
     

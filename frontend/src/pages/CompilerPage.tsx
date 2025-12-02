@@ -193,7 +193,7 @@ export default function CompilerPage() {
     setIsAnalyzingSecurity(true);
     try {
       const result = await apiService.analyzeSecurity(code);
-      setSecurityAnalysis(result);
+      setSecurityAnalysis(result.analysis || result);
       setActiveTab("security");
       if (!isResultsVisible) {
         setIsResultsVisible(true);

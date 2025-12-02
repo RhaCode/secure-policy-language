@@ -9,7 +9,7 @@ from flask_cors import CORS
 import os
 
 # Import single unified API blueprint
-from api.routes import api
+from backend.api.routes import api
 
 def create_app():
     """Application factory"""
