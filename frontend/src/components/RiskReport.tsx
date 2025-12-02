@@ -4,6 +4,22 @@ import { Shield } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import type { RiskReportProps } from '../types';
 
+
+
+function getRiskLabel(score: number) {
+  if (score >= 75) return "Critical";
+  if (score >= 50) return "High";
+  if (score >= 25) return "Medium";
+  return "Low";
+}
+
+function getRiskColor(score: number, isDark: boolean) {
+  if (score >= 75) return isDark ? 'bg-red-900 text-red-300' : 'bg-red-100 text-red-700';
+  if (score >= 50) return isDark ? 'bg-orange-900 text-orange-300' : 'bg-orange-100 text-orange-700';
+  if (score >= 25) return isDark ? 'bg-yellow-900 text-yellow-300' : 'bg-yellow-100 text-yellow-700';
+  return isDark ? 'bg-green-900 text-green-300' : 'bg-green-100 text-green-700';
+}
+
 const RiskReport: React.FC<RiskReportProps> = ({ securityAnalysis, className = '' }) => {
   const { isDark } = useTheme();
 
@@ -13,7 +29,9 @@ const RiskReport: React.FC<RiskReportProps> = ({ securityAnalysis, className = '
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="text-center">
             <Shield size={48} className={`mx-auto mb-4 ${isDark ? 'text-[#3F3F46]' : 'text-[#D1D5DB]'}`} />
-            <p className={isDark ? 'text-[#A1A1AA]' : 'text-[#6B7280]'}>Security analysis results will appear here</p>
+            <p className={isDark ? 'text-[#A1A1AA]' : 'text-[#6B7280]'}>
+              Security analysis results will appear here
+            </p>
           </div>
         </div>
       </div>
@@ -28,7 +46,9 @@ const RiskReport: React.FC<RiskReportProps> = ({ securityAnalysis, className = '
           <h3 className={`font-semibold ${isDark ? 'text-[#F87171]' : 'text-[#DC2626]'}`}>Security Analysis Failed</h3>
         </div>
         <div className="flex-1 p-4 overflow-auto">
-          <p className={isDark ? 'text-[#F87171]' : 'text-[#DC2626]'}>{securityAnalysis.error}</p>
+          <p className={isDark ? 'text-[#F87171]' : 'text-[#DC2626]'}>
+            {securityAnalysis.error}
+          </p>
         </div>
       </div>
     );
@@ -43,7 +63,9 @@ const RiskReport: React.FC<RiskReportProps> = ({ securityAnalysis, className = '
       <div className={`shrink-0 ${isDark ? 'bg-[#312E81] border-[#3F3F46]' : 'bg-[#E0E7FF] border-[#D1D5DB]'} border-b p-4 flex items-center justify-between`}>
         <div className="flex items-center gap-2">
           <Shield size={20} className={isDark ? 'text-[#C7D2FE]' : 'text-[#3730A3]'} />
-          <h3 className={`font-semibold ${isDark ? 'text-[#C7D2FE]' : 'text-[#3730A3]'}`}>Security Risk Analysis</h3>
+          <h3 className={`font-semibold ${isDark ? 'text-[#C7D2FE]' : 'text-[#3730A3]'}`}>
+            Security Risk Analysis
+          </h3>
         </div>
       </div>
 
@@ -53,11 +75,18 @@ const RiskReport: React.FC<RiskReportProps> = ({ securityAnalysis, className = '
         <div className={`p-6 border-b ${isDark ? 'border-[#3F3F46]' : 'border-[#D1D5DB]'}`}>
           <div className={`flex items-center justify-between mb-4 text-sm font-semibold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>
             <h4>Overall Risk Score</h4>
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${isDark ? 'bg-[#3F3F46] text-[#A1A1AA]' : 'bg-[#E5E7EB] text-[#374151]'}`}>
-              Low
+
+            {/* DYNAMIC BADGE */}
+            <span
+              className={`px-3 py-1 rounded-full text-sm font-medium ${getRiskColor(
+                riskScore,
+                isDark
+              )}`}
+            >
+              {getRiskLabel(riskScore)}
             </span>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <div className={`w-full ${isDark ? 'bg-[#3F3F46]' : 'bg-[#D1D5DB]'} rounded-full h-4`}>
@@ -67,28 +96,34 @@ const RiskReport: React.FC<RiskReportProps> = ({ securityAnalysis, className = '
                 ></div>
               </div>
             </div>
-            <div className={`text-2xl font-bold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>{riskScore}/100</div>
+            <div className={`text-2xl font-bold ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>
+              {riskScore}/100
+            </div>
           </div>
         </div>
 
         {/* Risks */}
         {security_analysis.risks && security_analysis.risks.length > 0 && (
           <div className={`p-6 border-b ${isDark ? 'border-[#3F3F46]' : 'border-[#D1D5DB]'}`}>
-            <h4 className={`font-semibold mb-4 ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>Identified Risks</h4>
+            <h4 className={`font-semibold mb-4 ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>
+              Identified Risks
+            </h4>
             <div className="space-y-3">
               {security_analysis.risks.map((risk, index) => (
                 <div key={index} className={`border rounded-lg p-4 ${isDark ? 'border-[#3F3F46]' : 'border-[#D1D5DB]'}`}>
                   <div className="flex items-start gap-3">
                     <div className={`font-medium capitalize ${
-                      risk.severity === 'critical' ? isDark ? 'text-[#F87171]' : 'text-[#DC2626]' :
-                      risk.severity === 'high' ? isDark ? 'text-[#FB923C]' : 'text-[#EA580C]' :
-                      risk.severity === 'medium' ? isDark ? 'text-[#FBBF24]' : 'text-[#D97706]' : 
-                      isDark ? 'text-[#10B981]' : 'text-[#059669]'
+                      risk.severity === 'critical' ? (isDark ? 'text-[#F87171]' : 'text-[#DC2626]') :
+                      risk.severity === 'high' ? (isDark ? 'text-[#FB923C]' : 'text-[#EA580C]') :
+                      risk.severity === 'medium' ? (isDark ? 'text-[#FBBF24]' : 'text-[#D97706]') :
+                      (isDark ? 'text-[#10B981]' : 'text-[#059669]')
                     }`}>
                       {risk.severity}
                     </div>
                     <div className="flex-1">
-                      <p className={isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}>{risk.description}</p>
+                      <p className={isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}>
+                        {risk.description}
+                      </p>
                       {risk.recommendation && (
                         <div className={`mt-2 p-2 rounded text-sm ${isDark ? 'bg-[#312E81] text-[#C7D2FE]' : 'bg-[#E0E7FF] text-[#3730A3]'}`}>
                           <strong>Recommendation:</strong> {risk.recommendation}
@@ -105,25 +140,19 @@ const RiskReport: React.FC<RiskReportProps> = ({ securityAnalysis, className = '
         {/* Recommendations */}
         {security_analysis.recommendations && security_analysis.recommendations.length > 0 && (
           <div className="p-6">
-            <h4 className={`font-semibold mb-4 ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>Security Recommendations</h4>
+            <h4 className={`font-semibold mb-4 ${isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}`}>
+              Security Recommendations
+            </h4>
             <ul className="space-y-2">
               {security_analysis.recommendations.map((recommendation, index) => (
                 <li key={index} className="flex items-start gap-2">
                   <div className={`mt-1 ${isDark ? 'text-[#10B981]' : 'text-[#059669]'}`}>✓</div>
-                  <span className={isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}>{recommendation}</span>
+                  <span className={isDark ? 'text-[#F3F4F6]' : 'text-[#111827]'}>
+                    {recommendation}
+                  </span>
                 </li>
               ))}
             </ul>
-          </div>
-        )}
-
-        {(!security_analysis.risks || security_analysis.risks.length === 0) && 
-         (!security_analysis.recommendations || security_analysis.recommendations.length === 0) && (
-          <div className="flex-1 flex items-center justify-center p-6">
-            <div className="text-center">
-              <div className={`${isDark ? 'text-[#10B981]' : 'text-[#059669]'} text-5xl mb-4`}>✓</div>
-              <p className={isDark ? 'text-[#A1A1AA]' : 'text-[#6B7280]'}>No significant security risks identified</p>
-            </div>
           </div>
         )}
       </div>

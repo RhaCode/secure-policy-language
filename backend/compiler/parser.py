@@ -1,6 +1,6 @@
 """
 backend/compiler/parser.py
-Secure Policy Language (SPL) Parser - FIXED VERSION WITH VALUE LISTS
+AuthScript Parser
 Performs syntax analysis and builds Abstract Syntax Tree (AST)
 """
 
@@ -11,8 +11,8 @@ import os
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from compiler.lexer import SPLLexer
-from compiler.ast_nodes import *
+from backend.compiler.lexer import SPLLexer
+from backend.compiler.ast_nodes import *
 
 
 class SPLParser:
@@ -77,15 +77,47 @@ class SPLParser:
     
     def p_property(self, p):
         '''property : IDENTIFIER COLON value_or_list
-                   | CAN COLON value_or_list'''
-        # Handle 'can' keyword specially
-        key = 'can' if p[1] == 'can' else p[1]
-        p[0] = {key: p[3]}
+                   | CAN COLON action_value_or_list'''
+        # Handle 'can' keyword specially - must use action values only
+        if p[1] == 'can':
+            key = 'can'
+            p[0] = {key: p[3]}
+        else:
+            key = p[1]
+            p[0] = {key: p[3]}
     
     def p_value_or_list(self, p):
         '''value_or_list : value_list
                         | value'''
         p[0] = p[1]
+    
+    def p_action_value_or_list(self, p):
+        '''action_value_or_list : action_value_list
+                               | action_value'''
+        p[0] = p[1]
+    
+    def p_action_value_list(self, p):
+        '''action_value_list : action_value_list COMMA action_value
+                            | action_value COMMA action_value'''
+        if len(p) == 4:
+            if isinstance(p[1], list):
+                p[0] = p[1] + [p[3]]
+            else:
+                p[0] = [p[1], p[3]]
+    
+    def p_action_value(self, p):
+        '''action_value : READ
+                       | WRITE
+                       | DELETE
+                       | EXECUTE
+                       | CREATE
+                       | UPDATE
+                       | LIST
+                       | ASTERISK'''
+        if p[1] == '*':
+            p[0] = '*'
+        else:
+            p[0] = p[1].lower()
     
     def p_value_list(self, p):
         '''value_list : value_list COMMA value
@@ -110,13 +142,24 @@ class SPLParser:
         p[0] = p[1]
     
     def p_action_list(self, p):
-        '''action_list : action_list COMMA IDENTIFIER
-                      | IDENTIFIER
+        '''action_list : action_list COMMA action
+                      | action
                       | ASTERISK'''
         if len(p) == 4:
             p[0] = p[1] + [p[3]]
         else:
             p[0] = [p[1]]
+    
+    def p_action(self, p):
+        '''action : READ
+                 | WRITE
+                 | DELETE
+                 | EXECUTE
+                 | CREATE
+                 | UPDATE
+                 | LIST'''
+        # Return lowercase for consistency
+        p[0] = p[1].lower()
     
     def p_resource_spec(self, p):
         '''resource_spec : IDENTIFIER
@@ -194,7 +237,8 @@ class SPLParser:
             self.errors.append(error_msg)
             print(error_msg)
             # Skip the bad token and try to recover
-            self.parser.errok()
+            if self.parser:
+                self.parser.errok()
         else:
             error_msg = "Syntax error: Unexpected end of file"
             self.errors.append(error_msg)
@@ -225,6 +269,11 @@ class SPLParser:
         """
         if not self.parser:
             self.build()
+
+        assert self.parser is not None  # For Pylance
+
+        result = self.parser.parse(data, lexer=self.lexer.lexer, debug=debug)
+
         
         # Reset lexer state before parsing
         self.lexer.reset()
@@ -239,51 +288,3 @@ class SPLParser:
             return None
         
         return result
-    
-    def parse_file(self, filename):
-        """Parse a file containing SPL code"""
-        with open(filename, 'r') as f:
-            data = f.read()
-        return self.parse(data)
-
-
-if __name__ == '__main__':
-    sample_code = '''
-    ROLE Admin {
-        can: *
-    }
-    
-    ROLE Developer {
-        can: read, write
-    }
-    
-    RESOURCE DB_Finance {
-        path: "/data/financial"
-    }
-    
-    ALLOW action: read, write ON RESOURCE: DB_Finance
-    IF (time.hour >= 9 AND time.hour <= 17)
-    
-    DENY action: delete ON RESOURCE: DB_Finance
-    IF (user.role == "Guest")
-    
-    USER JaneDoe {
-        role: Developer
-    }
-    '''
-    
-    parser = SPLParser()
-    parser.build()
-    
-    print("=" * 60)
-    print("PARSING SPL CODE")
-    print("=" * 60)
-    
-    ast = parser.parse(sample_code)
-    
-    if ast:
-        print("\n✓ Parsing successful!")
-        printer = ASTPrinter()
-        printer.visit(ast)
-    else:
-        print("\n✗ Parsing failed!")

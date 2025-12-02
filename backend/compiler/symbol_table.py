@@ -1,6 +1,6 @@
 """
 backend/compiler/symbol_table.py
-Symbol Table for Secure Policy Language (SPL)
+AuthScript Symbol Table
 Manages scopes, bindings, and symbol information
 """
 
@@ -201,6 +201,8 @@ class SymbolTable:
         print("=" * 80)
 
 
+
+
 # Scope and Binding Demonstration
 class ScopeBindingDemo:
     """
@@ -299,7 +301,6 @@ class ScopeBindingDemo:
         print("\n8. FINAL SYMBOL TABLE")
         print("-" * 80)
         st.print_table()
-
 
 # Example usage
 if __name__ == '__main__':

@@ -164,8 +164,15 @@ class ASTVisitor:
     def visit_AttributeNode(self, node):
         pass
 
+    def visit_LiteralNode(self, node):
+        """Visit method for LiteralNode"""
+        if isinstance(node.value, str):
+            print(f'{self.indent()}"{node.value}"')
+        else:
+            print(f'{self.indent()}{node.value}')
 
-# AST Printer for visualization
+
+    # AST Printer for visualization
 class ASTPrinter(ASTVisitor):
     """Pretty-print the AST structure"""
     

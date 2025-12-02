@@ -1,7 +1,6 @@
 """
 backend/compiler/code_generator.py
-Target Code Generation for Secure Policy Language - FIXED VERSION
-Generates executable policies with proper structure for execution engine
+Auto-generates policies from role definitions
 """
 
 from compiler.parser import (
@@ -34,6 +33,11 @@ class CodeGenerator(ASTVisitor):
         # Visit AST to collect definitions
         self.visit(ast)
         
+        # AUTO-GENERATE POLICIES FROM ROLES IF NO EXPLICIT POLICIES
+        if len(self.policies) == 0 and len(self.roles) > 0:
+            print("\n⚠️  No explicit policies found - auto-generating from roles")
+            self._auto_generate_policies()
+        
         if self.target_format == 'json':
             return self._generate_json()
         elif self.target_format == 'python':
@@ -42,6 +46,33 @@ class CodeGenerator(ASTVisitor):
             return self._generate_yaml()
         else:
             return str({"roles": self.roles, "users": self.users, "resources": self.resources, "policies": self.policies})
+    
+    def _auto_generate_policies(self):
+        """
+        Auto-generate policies from role definitions
+        Creates an ALLOW policy for each role's permissions on each resource
+        """
+        for role in self.roles:
+            role_name = role['name']
+            permissions = role['properties'].get('can', [])
+            
+            # Ensure permissions is a list
+            if not isinstance(permissions, list):
+                permissions = [permissions]
+            
+            # For each resource, create a policy
+            for resource in self.resources:
+                resource_name = resource['name']
+                
+                policy = {
+                    "type": "ALLOW",
+                    "actions": permissions,
+                    "resource": resource_name,
+                    "condition": f'user.role == "{role_name}"'
+                }
+                
+                self.policies.append(policy)
+                print(f"  ✓ Auto-generated: ALLOW {permissions} ON {resource_name} IF user.role == \"{role_name}\"")
     
     def visit_ProgramNode(self, node):
         """Visit program node - process all statements"""
@@ -130,7 +161,10 @@ class CodeGenerator(ASTVisitor):
                 "roles_count": len(self.roles),
                 "users_count": len(self.users),
                 "resources_count": len(self.resources),
-                "policies_count": len(self.policies)
+                "policies_count": len(self.policies),
+                "auto_generated": len(self.policies) > 0 and all(
+                    p.get('condition', '').startswith('user.role ==') for p in self.policies
+                )
             }
         }
         
@@ -276,49 +310,4 @@ engine = PolicyEngine()
     def get_supported_formats(self):
         """Return list of supported target formats"""
         return ['json', 'python', 'yaml']
-
-
-# Example usage and testing
-if __name__ == '__main__':
-    from compiler.parser import SPLParser
     
-    sample_code = '''
-    ROLE Admin {
-        can: *
-    }
-    
-    ROLE Developer {
-        can: read, write
-    }
-    
-    RESOURCE DB_Finance {
-        path: "/data/financial"
-    }
-    
-    ALLOW action: read, write ON RESOURCE: DB_Finance
-    IF (user.role == "Developer" AND time.hour >= 9 AND time.hour <= 17)
-    
-    USER Alice {
-        role: Admin
-    }
-    '''
-    
-    # Parse the sample code
-    parser = SPLParser()
-    parser.build()
-    ast = parser.parse(sample_code)
-    
-    if ast:
-        print("✓ Parsing successful")
-        
-        # Test JSON generation
-        json_generator = CodeGenerator('json')
-        json_output = json_generator.generate(ast)
-        print("\n" + "="*50)
-        print("JSON OUTPUT:")
-        print("="*50)
-        print(json_output)
-        
-    else:
-        print("✗ Parsing failed")
-        print("Errors:", parser.errors)

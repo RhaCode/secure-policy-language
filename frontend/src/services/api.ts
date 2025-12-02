@@ -2,15 +2,20 @@
 import type { 
   CompilationResponse, 
   SemanticAnalysisResponse, 
-  SecurityAnalysisResponse,
   TokenizeResponse,
   ParseResponse,
-  ValidateResponse
+  ValidateResponse,
+  AccessCheckContext,
+  AccessCheckResult,
+  UserInfo,
+  ResourceInfo,
+  PolicyInfo,
+  AuditLog,
+  AccessStatistics
 } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 const EXECUTION_BASE = `${API_BASE}/execution`;
-const CRUD_BASE = `${API_BASE}/crud`;
 
 class ApiService {
   private async fetchWithErrorHandling(url: string, options: RequestInit = {}) {
@@ -23,7 +28,6 @@ class ApiService {
         ...options,
       });
 
-      // For compilation, we now accept 200 responses even with parsing errors
       if (!response.ok && !url.includes('/compile')) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -37,7 +41,12 @@ class ApiService {
 
   // ============ COMPILER METHODS ============
 
-  async compileSPL(code: string, analyze: boolean = false, generateCode: boolean = false, format: string = 'json'): Promise<CompilationResponse> {
+  async compileSPL(
+    code: string, 
+    analyze: boolean = false, 
+    generateCode: boolean = false, 
+    format: string = 'json'
+  ): Promise<CompilationResponse> {
     return this.fetchWithErrorHandling(`${API_BASE}/compile`, {
       method: 'POST',
       body: JSON.stringify({ 
@@ -46,13 +55,6 @@ class ApiService {
         generate_code: generateCode,
         format 
       }),
-    });
-  }
-
-  async debugTokens(code: string): Promise<{ tokens: any[]; total_tokens: number }> {
-    return this.fetchWithErrorHandling(`${API_BASE}/debug-tokens`, {
-      method: 'POST',
-      body: JSON.stringify({ code }),
     });
   }
 
@@ -84,10 +86,11 @@ class ApiService {
     });
   }
 
-  async analyzeSecurity(code: string, provider: string = 'azure'): Promise<SecurityAnalysisResponse> {
-    return this.fetchWithErrorHandling(`${API_BASE}/analyze-security`, {
-      method: 'POST',
-      body: JSON.stringify({ code, provider }),
+  // ⭐ FIXED: correct Gemini endpoint + correct payload
+  async analyzeSecurity(code: string) {
+    return this.fetchWithErrorHandling(`${API_BASE}/llm/analyze-policy`, {
+      method: "POST",
+      body: JSON.stringify({ code }),
     });
   }
 
@@ -97,22 +100,15 @@ class ApiService {
 
   // ============ EXECUTION ENGINE METHODS ============
 
-  async checkAccess(username: string, action: string, resource: string, context?: any): Promise<any> {
+  async checkAccess(
+    username: string, 
+    action: string, 
+    resource: string, 
+    context?: Partial<AccessCheckContext>
+  ): Promise<AccessCheckResult> {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/check-access`, {
       method: 'POST',
       body: JSON.stringify({ username, action, resource, context }),
-    });
-  }
-
-  async activatePolicy(name: string, sourceCode: string, compiledJson: any, createdBy?: string): Promise<any> {
-    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/activate-policy`, {
-      method: 'POST',
-      body: JSON.stringify({ 
-        name, 
-        source_code: sourceCode, 
-        compiled_json: compiledJson,
-        created_by: createdBy 
-      }),
     });
   }
 
@@ -120,77 +116,57 @@ class ApiService {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/user-permissions/${username}`);
   }
 
-  async getPolicies(): Promise<any> {
-    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/policies`);
-  }
+  // ============ READ-ONLY DATA ENDPOINTS ============
 
-  async getPolicyHistory(name: string): Promise<any> {
-    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/policies/${name}/history`);
-  }
-
-  // ============ USER MANAGEMENT (EXECUTION) ============
-
-  async getUsers(): Promise<{ success: boolean; users: any[] }> {
+  async getUsers(): Promise<{ success: boolean; users: UserInfo[]; count: number }> {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/users`);
   }
 
-  async createUser(username: string, role: string, email?: string, department?: string): Promise<any> {
-    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/users`, {
-      method: 'POST',
-      body: JSON.stringify({ username, role, email, department }),
-    });
-  }
-
-  async getUser(username: string): Promise<any> {
+  async getUser(username: string): Promise<{ success: boolean; user: UserInfo }> {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/users/${username}`);
   }
 
-  async updateUser(username: string, data: any): Promise<any> {
-    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/users/${username}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteUser(username: string): Promise<any> {
-    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/users/${username}`, {
-      method: 'DELETE',
-    });
-  }
-
-  // ============ RESOURCE MANAGEMENT (EXECUTION) ============
-
-  async getResources(): Promise<{ success: boolean; resources: any[] }> {
+  async getResources(): Promise<{ success: boolean; resources: ResourceInfo[]; count: number }> {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/resources`);
   }
 
-  async createResource(name: string, type: string, path: string, description?: string, owner?: string): Promise<any> {
-    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/resources`, {
-      method: 'POST',
-      body: JSON.stringify({ name, type, path, description, owner }),
-    });
+  async getResource(name: string): Promise<{ success: boolean; resource: ResourceInfo }> {
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/resources/${encodeURIComponent(name)}`);
   }
 
-  async getResource(name: string): Promise<any> {
-    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/resources/${name}`);
+  async getPolicies(): Promise<PolicyInfo[]> {
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/policies`);
   }
 
-  async updateResource(name: string, data: any): Promise<any> {
-    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/resources/${name}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
+  async getPolicyDetails(policyId: number): Promise<{ success: boolean; policy: any }> {
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/policies/${policyId}`);
   }
 
-  async deleteResource(name: string): Promise<any> {
-    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/resources/${name}`, {
-      method: 'DELETE',
-    });
+  async getPolicyHistory(name: string): Promise<{ 
+    success: boolean; 
+    policy_name: string; 
+    versions: any[]; 
+    total_versions: number 
+  }> {
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/policies/${encodeURIComponent(name)}/history`);
   }
 
-  // ============ AUDIT LOGS ============
+  async getActivePolicySourceCode(): Promise<{ 
+    success: boolean; 
+    source_code: string; 
+    policy_name: string; 
+    policy_version: number 
+  }> {
+    return this.fetchWithErrorHandling(`${EXECUTION_BASE}/policies/source`);
+  }
 
-  async getAuditLogs(username?: string, resource?: string, limit: number = 100): Promise<any> {
+  // ============ AUDIT LOGS & STATISTICS ============
+
+  async getAuditLogs(
+    username?: string, 
+    resource?: string, 
+    limit: number = 100
+  ): Promise<{ success: boolean; logs: AuditLog[]; count: number }> {
     const params = new URLSearchParams();
     if (username) params.append('username', username);
     if (resource) params.append('resource', resource);
@@ -199,110 +175,39 @@ class ApiService {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/audit-logs?${params.toString()}`);
   }
 
-  async getStatistics(): Promise<any> {
+  async getStatistics(): Promise<{ 
+    success: boolean; 
+    statistics: {
+      users: { total: number; active: number };
+      resources: { total: number };
+      policies: { total: number };
+      access_logs: AccessStatistics;
+    }
+  }> {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/statistics`);
   }
 
-  // ============ HEALTH CHECK ============
-
-  async executionHealthCheck(): Promise<any> {
+  async executionHealthCheck(): Promise<{ 
+    status: string; 
+    database: string; 
+    policy_engine: string 
+  }> {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/health`);
-  }
-
-  // ============ CRUD MANAGEMENT METHODS ============
-
-  // Users CRUD
-  async getUsersCRUD(): Promise<{ success: boolean; data: any[] }> {
-    return this.fetchWithErrorHandling(`${CRUD_BASE}/users`);
-  }
-
-  async createUserCRUD(username: string, role: string, email?: string, department?: string): Promise<any> {
-    return this.fetchWithErrorHandling(`${CRUD_BASE}/users`, {
-      method: 'POST',
-      body: JSON.stringify({ username, role, email, department }),
-    });
-  }
-
-  async getUserCRUD(username: string): Promise<{ success: boolean; data: any }> {
-    return this.fetchWithErrorHandling(`${CRUD_BASE}/users/${username}`);
-  }
-
-  async updateUserCRUD(username: string, data: any): Promise<any> {
-    return this.fetchWithErrorHandling(`${CRUD_BASE}/users/${username}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteUserCRUD(username: string): Promise<any> {
-    return this.fetchWithErrorHandling(`${CRUD_BASE}/users/${username}`, {
-      method: 'DELETE',
-    });
-  }
-
-  // Resources CRUD
-  async getResourcesCRUD(): Promise<{ success: boolean; data: any[] }> {
-    return this.fetchWithErrorHandling(`${CRUD_BASE}/resources`);
-  }
-
-  async createResourceCRUD(name: string, type: string, path: string, description?: string, owner?: string): Promise<any> {
-    return this.fetchWithErrorHandling(`${CRUD_BASE}/resources`, {
-      method: 'POST',
-      body: JSON.stringify({ name, type, path, description, owner }),
-    });
-  }
-
-  async getResourceCRUD(name: string): Promise<{ success: boolean; data: any }> {
-    return this.fetchWithErrorHandling(`${CRUD_BASE}/resources/${name}`);
-  }
-
-  async updateResourceCRUD(name: string, data: any): Promise<any> {
-    return this.fetchWithErrorHandling(`${CRUD_BASE}/resources/${name}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteResourceCRUD(name: string): Promise<any> {
-    return this.fetchWithErrorHandling(`${CRUD_BASE}/resources/${name}`, {
-      method: 'DELETE',
-    });
-  }
-
-  // Policies CRUD
-  async getPoliciesCRUD(): Promise<{ success: boolean; data: any }> {
-    return this.fetchWithErrorHandling(`${CRUD_BASE}/policies`);
-  }
-
-  async getPolicyCRUD(policyId: number): Promise<{ success: boolean; data: any }> {
-    return this.fetchWithErrorHandling(`${CRUD_BASE}/policies/${policyId}`);
-  }
-
-  async getPolicyHistoryCRUD(name: string): Promise<{ success: boolean; data: any }> {
-    return this.fetchWithErrorHandling(`${CRUD_BASE}/policies/history/${name}`);
-  }
-
-  async activatePolicyCRUD(policyId: number): Promise<any> {
-    return this.fetchWithErrorHandling(`${CRUD_BASE}/policies/${policyId}/activate`, {
-      method: 'POST',
-    });
-  }
-
-  async deletePolicyCRUD(policyId: number): Promise<any> {
-    return this.fetchWithErrorHandling(`${CRUD_BASE}/policies/${policyId}`, {
-      method: 'DELETE',
-    });
-  }
-
-  // Statistics
-  async getStatisticsCRUD(): Promise<{ success: boolean; data: any }> {
-    return this.fetchWithErrorHandling(`${CRUD_BASE}/statistics`);
-  }
-
-  // Health Check
-  async crudHealthCheck(): Promise<any> {
-    return this.fetchWithErrorHandling(`${CRUD_BASE}/health`);
   }
 }
 
 export const apiService = new ApiService();
+
+// ⭐ FIXED: Correct bottom helper function
+export async function scanWithLLM(code: string) {
+  const response = await fetch(
+    `${import.meta.env.VITE_API_BASE_URL}/llm/analyze-policy`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ policy_code: code }),
+    }
+  );
+
+  return response.json();
+}

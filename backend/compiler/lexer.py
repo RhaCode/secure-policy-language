@@ -1,21 +1,23 @@
 """
 backend/compiler/lexer.py
-Secure Policy Language (SPL) Lexer - FIXED VERSION
+AuthScript Lexer
 Tokenizes SPL source code using PLY (Python Lex-Yacc)
 """
 
 import ply.lex as lex
-import os
 
 class SPLLexer:
     """Lexical analyzer for Secure Policy Language"""
     
-    # List of token names (required by PLY)
+    # List of token names
     tokens = (
         # Keywords
         'ROLE', 'USER', 'RESOURCE', 'ALLOW', 'DENY',
         'ON', 'IF', 'AND', 'OR', 'NOT',
         'ACTION', 'CAN', 'TRUE', 'FALSE',
+        
+        # Action tokens
+        'READ', 'WRITE', 'DELETE', 'EXECUTE', 'CREATE', 'UPDATE', 'LIST',
         
         # Identifiers and literals
         'IDENTIFIER',
@@ -53,6 +55,7 @@ class SPLLexer:
     
     # Reserved keywords mapping
     reserved = {
+        # Core keywords (case-sensitive)
         'ROLE': 'ROLE',
         'USER': 'USER',
         'RESOURCE': 'RESOURCE',
@@ -67,13 +70,36 @@ class SPLLexer:
         'can': 'CAN',
         'true': 'TRUE',
         'false': 'FALSE',
+        
+        # Action keywords - case insensitive
+        'read': 'READ',
+        'READ': 'READ',
+        'write': 'WRITE', 
+        'WRITE': 'WRITE',
+        'delete': 'DELETE',
+        'DELETE': 'DELETE',
+        'execute': 'EXECUTE',
+        'EXECUTE': 'EXECUTE',
+        'create': 'CREATE',
+        'CREATE': 'CREATE',
+        'update': 'UPDATE',
+        'UPDATE': 'UPDATE',
+        'list': 'LIST',
+        'LIST': 'LIST',
     }
     
-    # Identifier (must come after keywords)
+    # Identifier
     def t_IDENTIFIER(self, t):
         r'[a-zA-Z_][a-zA-Z0-9_]*'
-        # Check if it's a reserved keyword
-        t.type = self.reserved.get(t.value, 'IDENTIFIER')
+        # Check if it's a reserved keyword - normalize to lowercase for comparison
+        # First check exact match in reserved
+        if t.value in self.reserved:
+            t.type = self.reserved[t.value]
+        # Then check lowercase for action keywords
+        elif t.value.lower() in self.reserved:
+            t.type = self.reserved[t.value.lower()]
+        else:
+            t.type = 'IDENTIFIER'
         return t
     
     # String literal

@@ -1,6 +1,6 @@
 """
 backend/execution/policy_engine.py
-Policy Execution Engine - Enforces compiled SPL policies
+Policy Execution Engine - Enforces compiled AuthScript policies
 """
 
 import json
@@ -59,7 +59,18 @@ class PolicyEngine:
             username: Name of user requesting access
             action: Action to perform (read, write, delete, etc.)
             resource_name: Name of resource to access
-            context: Additional context (time, IP, device, etc.)
+            context: Additional context with structure:
+                {
+                    'time': {'hour': int, 'minute': int},
+                    'request': {'ip': str},
+                    'device': {
+                        'type': str,
+                        'trusted': bool,
+                        'os': str,
+                        'browser': str,
+                        'location': str
+                    }
+                }
             
         Returns:
             Dict with access decision and explanation
@@ -98,22 +109,59 @@ class PolicyEngine:
         if context is None:
             context = {}
         
-        # Add user and time context
+        # Extract time context
+        time_context = context.get('time', {})
+        current_time = datetime.now()
+        
+        # Extract request context (IP)
+        request_context = context.get('request', {})
+        
+        # Extract device context
+        device_context = context.get('device', {})
+        
+        # Build evaluation context with all attributes
         eval_context = {
             'user': {
                 'name': username,
                 'role': user_role
             },
             'time': {
-                'hour': context.get('hour', datetime.now().hour),
-                'day': context.get('day', datetime.now().strftime('%A')),
-                'date': context.get('date', datetime.now().date())
+                'hour': time_context.get('hour', current_time.hour),
+                'minute': time_context.get('minute', current_time.minute),
+                'day': time_context.get('day', current_time.strftime('%A')),
+                'date': time_context.get('date', current_time.date()),
+                'weekday': time_context.get('weekday', current_time.weekday())
+            },
+            'request': {
+                'ip': request_context.get('ip', 'unknown'),
+                'method': request_context.get('method', 'GET'),
+                'path': request_context.get('path', '/'),
+                'headers': request_context.get('headers', {}),
+                'user_agent': request_context.get('user_agent', 'unknown')
+            },
+            'device': {
+                'type': device_context.get('type', 'unknown'),
+                'trusted': device_context.get('trusted', False),
+                'os': device_context.get('os', 'unknown'),
+                'browser': device_context.get('browser', 'unknown'),
+                'location': device_context.get('location', 'unknown'),
+                'id': device_context.get('id', 'unknown')
             },
             'resource': {
                 'name': resource_name,
-                'path': resource.get('properties', {}).get('path', '')
+                'path': resource.get('properties', {}).get('path', ''),
+                'type': resource.get('properties', {}).get('type', 'unknown')
             }
         }
+        
+        # Debug logging
+        print(f"\n🔍 Access Check Debug:")
+        print(f"  User: {username} (role: {user_role})")
+        print(f"  Action: {action}")
+        print(f"  Resource: {resource_name}")
+        print(f"  Time: {eval_context['time']['hour']}:{eval_context['time']['minute']}")
+        print(f"  IP: {eval_context['request']['ip']}")
+        print(f"  Device: {eval_context['device']['type']} (trusted: {eval_context['device']['trusted']})")
         
         # Evaluate policies
         matched_policies = []
@@ -136,6 +184,7 @@ class PolicyEngine:
                     policy['condition'], 
                     eval_context
                 )
+                print(f"  Policy {policy['type']} condition '{policy['condition']}' -> {condition_result}")
             
             if condition_result:
                 matched_policies.append({
@@ -198,37 +247,100 @@ class PolicyEngine:
         """
         Evaluate policy condition against context
         
+        Supports: user.role, time.hour, request.ip, device.type, device.trusted, etc.
+        
         Args:
             condition: Condition string (e.g., "user.role == 'Admin'")
-            context: Evaluation context with user, time, resource data
+            context: Evaluation context with user, time, request, device, resource data
             
         Returns:
             Boolean result of condition evaluation
         """
         try:
-            # Replace context variables with actual values
-            # user.role -> context['user']['role']
-            # time.hour -> context['time']['hour']
-            
             eval_str = condition
             
-            # Replace attribute access (user.role, time.hour, etc.)
+            # Split by quotes to avoid replacing inside string literals
+            parts = []
+            in_quote = False
+            current = ""
+            quote_char = None
+            
+            for i, char in enumerate(eval_str):
+                if char in ['"', "'"]:
+                    if not in_quote:
+                        # Process accumulated text before quote
+                        if current:
+                            parts.append(('text', current))
+                            current = ""
+                        in_quote = True
+                        quote_char = char
+                        current = char
+                    elif char == quote_char:
+                        # End of quoted string
+                        current += char
+                        parts.append(('string', current))
+                        current = ""
+                        in_quote = False
+                        quote_char = None
+                    else:
+                        current += char
+                else:
+                    current += char
+            
+            if current:
+                parts.append(('text' if not in_quote else 'string', current))
+            
+            # Replace attribute access only in non-quoted parts
             def replace_attr(match):
                 obj = match.group(1)
                 attr = match.group(2)
+                
+                # Check if object exists in context
+                if obj not in context:
+                    print(f"⚠️  Warning: Unknown object '{obj}' in condition")
+                    return "False"  # Unknown object evaluates to False
+                
+                # Check if attribute exists
+                if attr not in context[obj]:
+                    print(f"⚠️  Warning: Unknown attribute '{attr}' on '{obj}'")
+                    return "False"  # Unknown attribute evaluates to False
+                
                 return f"context['{obj}']['{attr}']"
             
-            eval_str = re.sub(r'(\w+)\.(\w+)', replace_attr, eval_str)
+            # Reconstruct string with replacements only in text parts
+            result_parts = []
+            for part_type, part_text in parts:
+                if part_type == 'text':
+                    # Apply regex replacement only to non-quoted text
+                    result_parts.append(re.sub(r'(\w+)\.(\w+)', replace_attr, part_text))
+                else:
+                    # Keep quoted strings as-is
+                    result_parts.append(part_text)
             
-            # Replace comparison operators
+            eval_str = ''.join(result_parts)
+            
+            # Replace boolean literals
+            eval_str = eval_str.replace(' true', ' True').replace(' false', ' False')
+            eval_str = eval_str.replace('True', 'True').replace('False', 'False')
+            
+            # Replace comparison operators (already correct in Python)
             eval_str = eval_str.replace('==', '==').replace('!=', '!=')
-            eval_str = eval_str.replace('AND', 'and').replace('OR', 'or').replace('NOT', 'not')
             
-            # Safely evaluate
+            # Replace logical operators
+            eval_str = eval_str.replace(' AND ', ' and ')
+            eval_str = eval_str.replace(' OR ', ' or ')
+            eval_str = eval_str.replace('NOT ', 'not ')
+            
+            print(f"  📝 Evaluating: {eval_str}")
+            
+            # Safely evaluate with restricted builtins
             result = eval(eval_str, {"__builtins__": {}}, {"context": context})
             return bool(result)
+            
         except Exception as e:
-            print(f"Error evaluating condition '{condition}': {e}")
+            print(f"❌ Error evaluating condition '{condition}': {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def get_user_permissions(self, username: str) -> Dict[str, Any]:
@@ -268,7 +380,8 @@ class PolicyEngine:
         return applicable
     
     def audit_access(self, username: str, action: str, resource_name: str, 
-                    allowed: bool, reason: str) -> Dict[str, Any]:
+                    allowed: bool, reason: str, 
+                    ip_address: str = None, device_info: str = None) -> Dict[str, Any]:
         """
         Create audit log entry
         
@@ -281,5 +394,7 @@ class PolicyEngine:
             'action': action,
             'resource': resource_name,
             'allowed': allowed,
-            'reason': reason
+            'reason': reason,
+            'ip_address': ip_address,
+            'device_info': device_info
         }
