@@ -18,20 +18,9 @@ secure-policy-language/
 │   │   ├── __init__.py
 │   │   └── routes.py             # Flask API endpoints
 │   │
-│   ├── utils/
+│   ├── execution/
 │   │   ├── __init__.py
-│   │   ├── error_handler.py      # Error messages and handling
-│   │   └── logger.py             # Logging configuration
-│   │
-│   ├── tests/
-│   │   ├── __init__.py
-│   │   ├── test_lexer.py
-│   │   ├── test_parser.py
-│   │   ├── test_semantic.py
-│   │   └── sample_policies/      # Test SPL files
-│   │       ├── valid_policy.spl
-│   │       ├── invalid_policy.spl
-│   │       └── conflict_policy.spl
+│   │   └── policy_engine.py
 │   │
 │   ├── app.py                    # Flask application entry point
 │   ├── config.py                 # Configuration (API keys, etc.)
@@ -53,10 +42,12 @@ secure-policy-language/
 │   │   ├── services/
 │   │   │   └── api.ts            # API calls to backend
 │   │   │
-│   │   ├── styles/
-│   │   │   └── main.css
+│   │   ├── pages/
+│   │   │   ├── ExecutionPage.tsx
+│   │   │   └── CompilerPage.tsx
 │   │   │
 │   │   ├── App.tsx               # Main React component
+│   │   ├── index.css
 │   │   └── main.tsx              # React entry point
 │   │
 │   ├── package.ton
@@ -247,32 +238,6 @@ IF (user.role == "Guest")
 <comparison_op> ::= '==' | '!=' | '<' | '>' | '<=' | '>='
 ```
 
-## 📦 Project Structure
-
-```
-secure-policy-language/
-├── backend/
-│   ├── compiler/
-│   │   ├── lexer.py              # Tokenization
-│   │   ├── parser.py             # Syntax analysis
-│   │   ├── ast_nodes.py          # AST definitions
-│   │   ├── semantic_analyzer.py  # Semantic checks
-│   │   └── code_generator.py     # Code generation
-│   ├── llm/
-│   │   └── security_scanner.py   # AI risk analysis
-│   └── api/
-│       └── routes.py             # Flask endpoints
-├── frontend/
-│   └── src/
-│       └── components/           # React components
-├── docs/
-│   └── project_report.md         # Full documentation
-├── examples/
-│   ├── basic_policy.spl
-│   ├── conflict_policy.spl
-│   └── advanced_policy.spl
-└── requirements.txt
-```
 
 ## 🧪 Testing
 
@@ -380,16 +345,6 @@ Educational project for CIT4004 - UTech Jamaica
 **Note:** This is an academic project demonstrating compiler design principles and AI integration for access control systems.
 
 
-Testing
-
-cd backend\tests
-python test_lexer.py
-
-PS C:\LATEST\secure-policy-language\backend\tests> python test_lexer.py
-PS C:\LATEST\secure-policy-language\backend\tests> python test_parser.py
-PS C:\LATEST\secure-policy-language\backend\tests> python test_semantic.py
-
-
 # SPL Execution Engine - Complete Setup Guide
 
 ## 🎯 Overview
@@ -400,34 +355,6 @@ You now have a **complete policy execution engine** with:
 - ✅ User/Resource management (SQLite database)
 - ✅ Audit logging
 - ✅ Access control testing interface
-
----
-
-## 📁 New Backend Structure
-
-```
-backend/
-├── compiler/           # Existing compiler components
-│   ├── lexer.py
-│   ├── parser.py
-│   ├── ast_nodes.py
-│   ├── semantic_analyzer.py
-│   └── code_generator.py
-│
-├── database/          # NEW - Database management
-│   ├── __init__.py
-│   └── db_manager.py
-│
-├── execution/         # NEW - Policy execution engine
-│   ├── __init__.py
-│   └── policy_engine.py
-│
-├── api/
-│   ├── routes.py              # Compiler APIs
-│   └── execution_routes.py    # NEW - Execution APIs
-│
-└── app.py             # Updated with execution routes
-```
 
 ---
 
