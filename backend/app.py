@@ -1,110 +1,123 @@
 """
 backend/app.py
-Flask Application - SPL Compiler & Execution Engine
-SOURCE CODE AS SINGLE SOURCE OF TRUTH
+SPL Compiler & Execution Engine - Azure Compatible Version
 """
 
-from flask import Flask, jsonify
-from flask_cors import CORS
 import os
+from flask import Flask, jsonify, send_from_directory
+from flask_cors import CORS
+from backend.api.routes import api
+from backend.api.execution_routes import execution_api
+from backend.api.crud_routes import crud_api
 
-# Import single unified API blueprint
-from api.routes import api
 
-def create_app():
-    """Application factory"""
-    app = Flask(__name__)
-    
-    # Enable CORS for all routes
-    CORS(app, resources={
-        r"/api/*": {
-            "origins": ["http://localhost:3000", "http://localhost:5173"],
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"]
+app = Flask(__name__, static_folder="static", static_url_path="")
+
+# Create absolute path to the static directory
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+
+# FRONTEND ROUTE
+
+@app.route("/")
+def serve_frontend():
+    """Serve the SPA frontend (index.html)"""
+    return send_from_directory(STATIC_DIR, "index.html")
+
+# Catch-all: serve frontend for ANY path that is not an API route
+    @app.route('/<path:path>')
+    def serve_frontend_files(path):
+        if path.startswith("api"):
+            return jsonify({"error": "API endpoint not found"}), 404
+    return send_from_directory(STATIC_DIR, path)
+
+
+# CORS CONFIG
+
+CORS(app, resources={
+    r"/api/*": {
+        "origins": [
+            "http://localhost:5173",
+            "http://localhost:3000",
+            "https://*.azurewebsites.net"
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
+
+
+# BLUEPRINTS
+
+app.register_blueprint(api, url_prefix='/api')
+app.register_blueprint(execution_api, url_prefix='/api/execution')
+app.register_blueprint(crud_api, url_prefix='/api/crud')
+
+
+
+# BACKEND INFO ROUTE
+
+@app.route('/api-info')
+def api_info():
+    """Backend diagnostic info"""
+    return jsonify({
+        "name": "Secure Policy Language (SPL) Compiler & Execution Engine",
+        "version": "1.0.0",
+        "status": "running",
+        "environment": os.environ.get("WEBSITE_SITE_NAME", "local"),
+        "port": os.environ.get("PORT", "not set"),
+        "health": "/health",
+        "api_base": "/api"
+    })
+
+
+# HEALTH CHECK
+
+@app.route('/health')
+def health():
+    return jsonify({
+        "status": "healthy",
+        "service": "SPL Compiler & Execution Engine",
+        "components": {
+            "compiler": "operational",
+            "execution_engine": "operational",
+            "crud_operations": "operational",
+            "database": "connected"
         }
     })
-    
-    # Configuration
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
-    app.config['JSON_SORT_KEYS'] = False
-    
-    # Register single unified blueprint
-    app.register_blueprint(api)
-    
-    # Root route
-    @app.route('/')
-    def index():
-        return jsonify({
-            "name": "Secure Policy Language (SPL) Compiler & Execution Engine",
-            "version": "2.0",
-            "description": "Source code as single source of truth - no manual CRUD operations",
-            "endpoints": {
-                "compiler": {
-                    "tokenize": "POST /api/tokenize",
-                    "parse": "POST /api/parse",
-                    "compile": "POST /api/compile",
-                    "validate": "POST /api/validate",
-                    "analyze": "POST /api/analyze",
-                    "health": "GET /api/health"
-                },
-                "execution": {
-                    "check_access": "POST /api/execution/check-access",
-                    "user_permissions": "GET /api/execution/user-permissions/<username>",
-                    "users": "GET /api/execution/users (READ ONLY)",
-                    "user_detail": "GET /api/execution/users/<username> (READ ONLY)",
-                    "resources": "GET /api/execution/resources (READ ONLY)",
-                    "resource_detail": "GET /api/execution/resources/<name> (READ ONLY)",
-                    "policies": "GET /api/execution/policies (READ ONLY)",
-                    "policy_detail": "GET /api/execution/policies/<id> (READ ONLY)",
-                    "policy_history": "GET /api/execution/policies/<name>/history (READ ONLY)",
-                    "policy_source": "GET /api/execution/policies/source (READ ONLY)",
-                    "audit_logs": "GET /api/execution/audit-logs",
-                    "statistics": "GET /api/execution/statistics",
-                    "health": "GET /api/execution/health"
-                }
-            },
-            "notes": [
-                "All users, resources, and policies are defined in SPL source code",
-                "Compiling new policy clears database and repopulates from source",
-                "No manual CRUD operations available",
-                "Read-only endpoints provided for frontend UI"
-            ]
-        })
-    
-    # Global error handlers
-    @app.errorhandler(404)
-    def not_found(error):
-        return jsonify({
-            "error": "Not Found",
-            "message": "The requested resource was not found",
-            "status": 404
-        }), 404
-    
-    @app.errorhandler(500)
-    def internal_error(error):
-        return jsonify({
-            "error": "Internal Server Error",
-            "message": "An unexpected error occurred",
-            "status": 500
-        }), 500
-    
-    return app
 
 
-if __name__ == '__main__':
-    app = create_app()
-    
-    print("\n" + "=" * 60)
-    print("SPL COMPILER & EXECUTION ENGINE")
-    print("=" * 60)
-    print("\n✓ Server starting...")
-    print("✓ Unified API: http://localhost:5000/api/")
-    print("✓ Compiler endpoints: /api/compile, /api/parse, /api/tokenize")
-    print("✓ Execution endpoints: /api/execution/*")
-    print("\nPress CTRL+C to stop\n")
-    
+# ERROR HANDLERS
+
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({
+        "error": "Not Found",
+        "message": "Endpoint does not exist",
+        "hint": "Try /api or /health"
+    }), 404
+
+
+@app.errorhandler(500)
+def internal_error(e):
+    return jsonify({
+        "error": "Internal Server Error",
+        "message": str(e)
+    }), 500
+
+
+# LOCAL DEV RUN
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+
+    print("\n" + "=" * 70)
+    print("🚀 SPL COMPILER & EXECUTION ENGINE")
+    print(f"🌎 Running on: http://0.0.0.0:{port}")
+    print(f"🧠 Environment: {os.environ.get('WEBSITE_SITE_NAME', 'local')}")
+    print("=" * 70)
+
     app.run(
-        host='0.0.0.0',
-        port=5000,
-        debug=True
+        host="0.0.0.0",
+        port=port,
+        debug=False
     )

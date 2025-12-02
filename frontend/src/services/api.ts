@@ -2,7 +2,6 @@
 import type { 
   CompilationResponse, 
   SemanticAnalysisResponse, 
-  SecurityAnalysisResponse,
   TokenizeResponse,
   ParseResponse,
   ValidateResponse,
@@ -40,7 +39,7 @@ class ApiService {
     }
   }
 
-  // ============ COMPILER METHODS ============
+  // COMPILER METHODS 
 
   async compileSPL(
     code: string, 
@@ -87,10 +86,10 @@ class ApiService {
     });
   }
 
-  async analyzeSecurity(code: string, provider: string = 'azure'): Promise<SecurityAnalysisResponse> {
-    return this.fetchWithErrorHandling(`${API_BASE}/analyze-security`, {
-      method: 'POST',
-      body: JSON.stringify({ code, provider }),
+  async analyzeSecurity(code: string) {
+    return this.fetchWithErrorHandling(`${API_BASE}/llm/analyze-policy`, {
+      method: "POST",
+      body: JSON.stringify({ code }),
     });
   }
 
@@ -98,15 +97,8 @@ class ApiService {
     return this.fetchWithErrorHandling(`${API_BASE}/health`);
   }
 
-  // ============ EXECUTION ENGINE METHODS ============
+  // EXECUTION ENGINE METHODS
 
-  /**
-   * Check access with extended context (time, IP, device)
-   * @param username - Username to check
-   * @param action - Action to perform (read, write, delete, etc.)
-   * @param resource - Resource name
-   * @param context - Extended context with time, request (IP), and device info
-   */
   async checkAccess(
     username: string, 
     action: string, 
@@ -123,7 +115,7 @@ class ApiService {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/user-permissions/${username}`);
   }
 
-  // ============ READ-ONLY DATA ENDPOINTS ============
+  // READ-ONLY DATA ENDPOINTS
 
   async getUsers(): Promise<{ success: boolean; users: UserInfo[]; count: number }> {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/users`);
@@ -167,7 +159,7 @@ class ApiService {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/policies/source`);
   }
 
-  // ============ AUDIT LOGS & STATISTICS ============
+  // AUDIT LOGS & STATISTICS 
 
   async getAuditLogs(
     username?: string, 
@@ -194,8 +186,6 @@ class ApiService {
     return this.fetchWithErrorHandling(`${EXECUTION_BASE}/statistics`);
   }
 
-  // ============ HEALTH CHECKS ============
-
   async executionHealthCheck(): Promise<{ 
     status: string; 
     database: string; 
@@ -206,3 +196,16 @@ class ApiService {
 }
 
 export const apiService = new ApiService();
+
+export async function scanWithLLM(code: string) {
+  const response = await fetch(
+    `${import.meta.env.VITE_API_BASE_URL}/llm/analyze-policy`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ policy_code: code }),
+    }
+  );
+
+  return response.json();
+}

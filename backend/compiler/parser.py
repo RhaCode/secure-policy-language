@@ -11,8 +11,8 @@ import os
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from compiler.lexer import SPLLexer
-from compiler.ast_nodes import *
+from backend.compiler.lexer import SPLLexer
+from backend.compiler.ast_nodes import *
 
 
 class SPLParser:
@@ -237,7 +237,8 @@ class SPLParser:
             self.errors.append(error_msg)
             print(error_msg)
             # Skip the bad token and try to recover
-            self.parser.errok()
+            if self.parser:
+                self.parser.errok()
         else:
             error_msg = "Syntax error: Unexpected end of file"
             self.errors.append(error_msg)
@@ -268,6 +269,11 @@ class SPLParser:
         """
         if not self.parser:
             self.build()
+
+        assert self.parser is not None  # For Pylance
+
+        result = self.parser.parse(data, lexer=self.lexer.lexer, debug=debug)
+
         
         # Reset lexer state before parsing
         self.lexer.reset()

@@ -1,25 +1,29 @@
 """
 backend/api/routes.py
 UNIFIED API Routes for SPL Compiler & Execution Engine
-SOURCE CODE AS SINGLE SOURCE OF TRUTH
 All data comes from compiled AuthScript policies
 """
 
 from flask import Blueprint, request, jsonify
-from compiler.semantic_analyzer import SemanticAnalyzer
-from compiler.lexer import SPLLexer
-from compiler.parser import SPLParser
-from compiler.ast_nodes import ASTPrinter, ASTVisitor
+from backend.compiler.semantic_analyzer import SemanticAnalyzer
+from backend.compiler.lexer import SPLLexer
+from backend.compiler.parser import SPLParser
+from backend.compiler.ast_nodes import ASTPrinter, ASTVisitor
 import json
 
-# Import database and execution engine
+from backend.database.db_manager import DatabaseManager
+from backend.execution.policy_engine import PolicyEngine
+from backend.llm.gemini_client import analyze_policy_with_llm
+
+
+# Database availability 
 try:
-    from database.db_manager import DatabaseManager
-    from execution.policy_engine import PolicyEngine
+    from backend.database.db_manager import DatabaseManager
+    from backend.execution.policy_engine import PolicyEngine
     DB_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     DB_AVAILABLE = False
-    print("Warning: Database not available. Policies will not be persisted.")
+    print(f"DATABASE IMPORT WARNING (initial load): {e}")
 
 # Create single Blueprint for all routes
 api = Blueprint('api', __name__, url_prefix='/api')
@@ -85,9 +89,8 @@ class SPLDataExtractor(ASTVisitor):
         pass
 
 
-# ============================================================================
+
 # HELPER FUNCTIONS
-# ============================================================================
 
 def get_db():
     """Get database manager instance"""
@@ -233,10 +236,43 @@ def clear_and_populate_database(ast, source_code, compiled_json):
         traceback.print_exc()
         return False
 
+# LLM ROUTE (GEMINI)
 
-# ============================================================================
+@api.route('/llm/analyze-policy', methods=['POST'])
+def analyze_policy():
+    """
+    Analyze SPL source code with Gemini and return structured JSON.
+    Accepts either:
+        { "code": "..." }
+    or:
+        { "policy_code": "..." }
+    """
+    try:
+        data = request.get_json() or {}
+
+        # Accept both keys 
+        spl_source = data.get("code") or data.get("policy_code")
+
+        if not spl_source:
+            return jsonify({"error": "Missing 'code' or 'policy_code'"}), 400
+
+        # Call Gemini client
+        analysis = analyze_policy_with_llm(spl_source)
+
+        return jsonify({
+            "success": True,
+            "security_analysis": analysis
+        }), 200
+
+    except Exception as e:
+        print("Gemini LLM Error:", e)
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+
 # COMPILER ROUTES
-# ============================================================================
 
 @api.route('/tokenize', methods=['POST'])
 def tokenize():
@@ -585,9 +621,9 @@ def analyze_semantics():
         }), 500
 
 
-# ============================================================================
+
 # EXECUTION ROUTES
-# ============================================================================
+
 
 @api.route('/execution/check-access', methods=['POST'])
 def check_access():
@@ -654,6 +690,7 @@ def check_access():
         return jsonify({
             'error': str(e)
         }), 500
+
 
 @api.route('/execution/user-permissions/<username>', methods=['GET'])
 def get_user_permissions(username):
@@ -829,7 +866,7 @@ def get_policy_details(policy_id):
             policy_dict = dict(policy)
             try:
                 policy_dict['compiled_json'] = json.loads(policy_dict['compiled_json'])
-            except:
+            except Exception:
                 pass
             
             return jsonify({
@@ -912,11 +949,12 @@ def get_audit_logs():
                 'error': 'Database not available'
             }), 500
         
-        username = request.args.get('username')
-        resource = request.args.get('resource')
+        username = request.args.get('username') or ""
+        resource = request.args.get('resource') or ""
         limit = int(request.args.get('limit', 100))
-        
+
         logs = database.get_audit_logs(username, resource, limit)
+
         
         return jsonify({
             'success': True,
@@ -978,9 +1016,9 @@ def get_statistics():
         }), 500
 
 
-# ============================================================================
+
 # HEALTH CHECK ROUTES
-# ============================================================================
+
 
 @api.route('/health', methods=['GET'])
 def health_check():
@@ -1009,9 +1047,9 @@ def execution_health_check():
     })
 
 
-# ============================================================================
+
 # ERROR HANDLERS
-# ============================================================================
+
 
 @api.errorhandler(404)
 def api_not_found(error):

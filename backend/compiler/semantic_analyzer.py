@@ -4,10 +4,11 @@ AuthScript Semantic Analysis
 Performs semantic checks, validates policies, detects conflicts
 """
 
-from compiler.parser import (
-    BinaryOpNode, UnaryOpNode, AttributeNode, LiteralNode, ASTVisitor
+from backend.compiler.parser import (
+    BinaryOpNode, UnaryOpNode, AttributeNode, LiteralNode
 )
-from compiler.symbol_table import SymbolTable, Symbol, SymbolType
+from backend.compiler.ast_nodes import ASTVisitor
+from backend.compiler.symbol_table import SymbolTable, Symbol, SymbolType
 
 
 class SemanticError:

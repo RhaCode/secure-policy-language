@@ -123,7 +123,7 @@ export default function CompilerPage() {
       }
     }
 
-    // Handle semantic analysis errors (these now block compilation)
+    // Handle semantic analysis errors 
     if (compilationResult.stages?.semantic_analysis) {
       compilationResult.stages.semantic_analysis.errors?.forEach((error) => {
         allErrors.push({
@@ -144,7 +144,7 @@ export default function CompilerPage() {
       );
     }
 
-    // If we have the errors array directly (from blocked compilation)
+    // If we have the errors array directly 
     if (compilationResult.errors && Array.isArray(compilationResult.errors)) {
       compilationResult.errors.forEach((error: CompilationError) => {
         allErrors.push({
@@ -193,7 +193,7 @@ export default function CompilerPage() {
     setIsAnalyzingSecurity(true);
     try {
       const result = await apiService.analyzeSecurity(code);
-      setSecurityAnalysis(result);
+      setSecurityAnalysis(result.analysis || result);
       setActiveTab("security");
       if (!isResultsVisible) {
         setIsResultsVisible(true);

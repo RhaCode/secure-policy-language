@@ -27,7 +27,7 @@ class SPLLexer:
         # Operators
         'EQUALS', 'NOT_EQUALS',
         'LESS_THAN', 'GREATER_THAN',
-        'LESS_EQUAL', 'GREATER_EQUAL',
+        'LESS_EQUAL', 'GREATER_EQUAL', 'ASSIGN',
         
         # Delimiters
         'LBRACE', 'RBRACE',
@@ -168,9 +168,13 @@ class SPLLexer:
         """
         if not self.lexer:
             self.build()
-        
+
+        # CRITICAL FIX: Reset line number before each tokenization
         self.reset()
-        
+
+        # Ensure lexer is initialized (helps static analyzers and avoids None.attr errors)
+        assert self.lexer is not None, "Lexer failed to build"
+
         self.lexer.input(data)
         self.tokens_list = []
         
@@ -181,3 +185,64 @@ class SPLLexer:
             self.tokens_list.append((tok.type, tok.value, tok.lineno))
         
         return self.tokens_list
+    
+    def test_lexer(self, data):
+        """
+        Test the lexer with sample input
+        
+        Args:
+            data (str): Source code to test
+        """
+        if not self.lexer:
+            self.build()
+
+        # Reset before testing
+        self.reset()
+
+        # Ensure lexer is initialized before use
+        assert self.lexer is not None, "Lexer failed to build"
+
+        self.lexer.input(data)
+        
+        print("=" * 60)
+        print("LEXICAL ANALYSIS RESULTS")
+        print("=" * 60)
+        print(f"{'Token Type':<20} {'Value':<25} {'Line'}")
+        print("-" * 60)
+        
+        while True:
+            tok = self.lexer.token()
+            if not tok:
+                break
+            print(f"{tok.type:<20} {str(tok.value):<25} {tok.lineno}")
+        
+        print("=" * 60)
+
+
+if __name__ == '__main__':
+    sample_code = '''
+    ROLE Admin {
+        can: *
+    }
+    
+    RESOURCE DB_Finance {
+        path: "/data/financial"
+    }
+    
+    ALLOW action: read, write ON RESOURCE: DB_Finance
+    IF (time.hour >= 9 AND time.hour <= 17)
+    
+    DENY action: delete ON RESOURCE: DB_Finance
+    IF (user.role == "Guest")
+    
+    USER JaneDoe {
+        role: Developer
+    }
+    '''
+    
+    lexer = SPLLexer()
+    lexer.build()
+    lexer.test_lexer(sample_code)
+    
+    tokens = lexer.tokenize(sample_code)
+    print(f"\nTotal tokens generated: {len(tokens)}")
